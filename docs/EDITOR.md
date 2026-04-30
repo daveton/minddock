@@ -2,20 +2,30 @@
 
 编辑器是系统的核心。它是一个**实时系统（Real-time System）**，所有设计必须围绕输入流畅性展开。
 
-目标：接近 Bear 的输入体验（无延迟、无干扰）。
+本文同时描述：
+
+- 规划层：编辑器必须守住的边界
+- 实现层：当前最小骨架已经落地的行为
 
 ---
 
-## 🎯 核心目标
+## 1. 核心目标
 
-- 输入延迟 < 16ms（1 帧）
-- 光标稳定（不跳动）
+- 输入延迟 < 16ms（目标）
+- 光标稳定
 - 连续输入无卡顿
-- 无感保存
+- 自动保存不打断写作
+
+当前状态：
+
+- 架构方向已落地
+- 性能指标尚未正式实测
 
 ---
 
-## ⚡ 输入模型
+## 2. 输入模型
+
+规划目标：
 
 ```text
 Keyboard Input
@@ -23,316 +33,198 @@ Keyboard Input
  → Minimal DOM Patch
 ```
 
-原则：
+当前实现对应 [setup.ts](/Users/daveton/Desktop/minddock/apps/web/src/editor/setup.ts:1) 和 [events.ts](/Users/daveton/Desktop/minddock/apps/web/src/editor/events.ts:1)：
 
-* 不触发 React re-render
-* 不访问数据层（Repository / IndexedDB）
-* 不做同步计算
-* 不调用网络
+- TipTap 独立挂载到 DOM 容器
+- React 不控制编辑器内容
+- `update` 事件只做 debounce 后保存
 
 ---
 
-## 🚫 输入阶段硬约束（不可违反）
+## 3. 输入阶段硬约束
 
-在 `keydown → transaction` 期间，禁止：
+在 `keydown → transaction` 期间，仍然禁止：
 
-* ❌ 调用 Repository（save / fetch）
-* ❌ 访问 IndexedDB
-* ❌ setState（React / Zustand）
-* ❌ 发起任何网络请求
-* ❌ 执行 Markdown 解析
-* ❌ 执行复杂计算（如 tag 解析）
+- 调用 Repository 持久化
+- 访问 IndexedDB
+- React / Zustand `setState`
+- 网络请求
+- Markdown 同步解析
+- 搜索、标签等重计算
 
 允许：
 
-* ✅ TipTap transaction
-* ✅ 局部 DOM 更新
+- TipTap transaction
+- 最小 DOM patch
 
-违反任意一条 = 输入卡顿
+说明：
+
+- 当前实现中的保存是挂在 `editor.on('update', debounce(..., 300))`
+- 因为持久化动作被推迟到 debounce 后，所以不属于输入热路径本身
 
 ---
 
-## 🧩 编辑器架构
+## 4. 当前最小编辑器架构
+
+当前代码里的实际链路：
 
 ```text
 Editor (TipTap)
  ↓
-onUpdate (debounced)
+editor.on('update')
  ↓
-Repository.saveNote
+debounce(300ms)
+ ↓
+saveCurrentNote(editor.getJSON())
 ```
 
-说明：
+对应实现：
 
-* 输入时：只更新编辑器内部状态
-* 输入结束后：再触发保存
+- 编辑器创建：[setup.ts](/Users/daveton/Desktop/minddock/apps/web/src/editor/setup.ts:1)
+- 事件绑定：[events.ts](/Users/daveton/Desktop/minddock/apps/web/src/editor/events.ts:1)
+- 页面承载：[EditorView.tsx](/Users/daveton/Desktop/minddock/apps/web/src/ui/EditorView.tsx:1)
 
 ---
 
-## 🕒 保存策略
+## 5. 当前已实现行为
 
-* debounce：300ms
-* 保存内容：完整 note（MVP 不做 diff）
-* 保存方式：乐观更新（UI 不等待）
+截至当前最小骨架，编辑器层已经具备：
 
-```ts
-editor.on('update', debounce(() => {
-  repository.saveNote(getCurrentNote())
-}, 300))
-```
+- TipTap 初始化
+- 零 React 受控内容
+- 300ms debounce 自动保存
+- 初始内容恢复
+- note 切换前 flush
+- note 切换后 `setContent`
+- 保存状态反馈
+- 在线 / 离线状态反馈
 
----
+这意味着当前可以验证的不是“完整产品”，而是：
 
-## 🧠 TipTap 配置（最小可用）
-
-```ts
-import { Editor } from '@tiptap/core'
-import StarterKit from '@tiptap/starter-kit'
-
-const editor = new Editor({
-  element: document.querySelector('#editor'),
-  extensions: [
-    StarterKit.configure({
-      history: true,
-    }),
-  ],
-  content: '',
-  autofocus: true,
-})
-```
+- 编辑器是否能保持独立运行
+- 自动保存是否会污染输入体验
+- 多 note 切换是否会破坏编辑流程
 
 ---
 
-## 🔧 TipTap 优化（必须）
+## 6. React 边界
 
-### 1. 禁止 React 控制 content
+当前页面使用了两种状态：
 
-```tsx
-// ❌ 错误
-<Editor content={state} />
+- `useRef`：保存 `Editor` 实例、状态 DOM 引用、活动 note id
+- `useState`：驱动 note 列表和当前选中行的 UI 更新
 
-// ✅ 正确
-const editor = useRef(new Editor(...))
-```
+这里的关键边界是：
 
----
+- 输入内容本身不经过 React state
+- React 只负责外围壳层 UI
+- `editor.commands.setContent()` 由切换逻辑显式调用
 
-### 2. 避免频繁 setState
+现状判断：
 
-```ts
-// ❌ 错误
-onUpdate: () => setState(...)
-
-// ✅ 正确
-onUpdate: debounce(handleUpdate, 300)
-```
+- 这仍符合“编辑器是实时系统，React 是薄壳”的规划方向
+- 但 `onSaved` 后刷新列表会触发外围 React 更新，后续需确认不会间接影响输入流畅性
 
 ---
 
-### 3. 使用 ref 而不是 state
+## 7. 保存策略
 
-```ts
-const noteRef = useRef(currentNote)
-```
+当前实现：
+
+- 输入后 300ms 触发保存
+- 保存内容为完整 note JSON
+- 保存目标为当前活动 note
+- 保存成功后更新状态文案和 note 列表时间
+
+切换场景下：
+
+- 切换前先 `flushActiveNote()`
+- flush 成功后再 `loadNote()`
+- 切换失败则显示 `Save failed`
+
+这部分已落地行为与 [EditorView.tsx](/Users/daveton/Desktop/minddock/apps/web/src/ui/EditorView.tsx:1) 保持一致。
 
 ---
 
-## ✍️ Markdown 渐隐策略
+## 8. 当前状态反馈
 
-规则：
+当前页面已实现两类轻量状态：
+
+- 保存状态：`Saved` / `Saving locally` / `Save failed`
+- 网络状态：`Offline-first / online` / `Offline editing`
+
+意义：
+
+- 这是对 `docs/FAILURE_MODES.md` 和 `docs/UIUX.md` 的最小实现映射
+- 仍是演示级别，不代表完整可靠性已验证
+
+当前还没做的事：
+
+- 保存失败后的重试入口
+- 恢复完成后的明确提示
+- 切换失败后的可操作选择
+
+---
+
+## 9. 切换策略
+
+当前切换策略已经从规划进入实现：
 
 ```text
-当前行 → 显示 Markdown
-其他行 → 渐隐
+click note
+ ↓
+save current note immediately
+ ↓
+load target note
+ ↓
+editor.commands.setContent(next.content)
 ```
 
-实现思路：
+当前原则：
 
-* 给当前行添加 class：`active-line` 
-* Markdown token 用 span 包裹
+- 优先正确性，而不是绝对无感
+- 切换前 flush 是必要步骤
+- 失败时宁可显示错误，也不静默切换
 
-```css
-.markdown-token {
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-.active-line .markdown-token {
-  opacity: 1;
-}
-```
+这是 Phase 1 非常关键的行为，因为它直接决定“多 note 能否可靠工作”。
 
 ---
 
-## 📍 行状态系统
+## 10. 当前未实现的编辑器能力
 
-```ts
-type LineState = {
-  id: string
-  isActive: boolean
-}
-```
+以下能力仍停留在规划层：
 
-来源：
+- Markdown 渐隐策略
+- selection / active line 系统
+- 光标滚动微调策略
+- 大文档优化
+- IME 场景验证
+- 粘贴大文本性能验证
+- 崩溃恢复专项验证
 
-* selection change
-* cursor position
-
----
-
-## 🧭 光标与滚动
-
-目标：
-
-* 光标不跳动
-* 滚动自然
-
-规则：
-
-* 不使用 `scrollIntoView` 
-* 使用最小滚动调整
-* 不在 render 中控制 scroll
+这些内容保留为后续阶段或后续细化项，不应先于输入稳定性验证。
 
 ---
 
-## 🔄 编辑器与数据层边界
+## 11. 当前已知风险
 
-* 输入过程中：不触发数据层
-* 输入结束（debounce）：调用 Repository.saveNote
-* 切换笔记：通过 Repository.getNote 加载
-
-```ts
-// 切换笔记
-const note = await repository.getNote(id)
-editor.commands.setContent(note.content)
-```
+1. `onSaved` 后刷新 note 列表会触发 React state 更新，需要确认不会影响长时间输入。
+2. 切换 note 使用 `editor.commands.setContent()`，需后续确认在频繁切换时不会引入光标或历史问题。
+3. 当前没有“正在切换”与“切换失败后保留上下文”的更细语义。
+4. 当前无多 tab 协调，编辑器实例只在单窗口假设下工作。
 
 ---
 
-## 📦 切换笔记策略
+## 12. 下一步建议
 
-* 切换前：立即保存当前 note（非 debounce）
-* 切换后：立即加载（优先本地）
-* 不显示 loading
+优先顺序建议：
 
----
+1. 实测输入性能
+2. 验证切换前 flush 是否稳定
+3. 验证刷新恢复
+4. 验证保存失败路径
+5. 再考虑 Markdown 渐隐或复杂交互增强
 
-## 💥 崩溃恢复
+结论：
 
-* 每次输入后保存到 IndexedDB
-* 页面刷新自动恢复
-
-目标：
-
-即使浏览器崩溃，也不丢内容
-
----
-
-## ⚡ 性能优化策略
-
-### 必须：
-
-* 不全量 render
-* 不深层 state
-* 不频繁 setState
-
----
-
-### 技术手段：
-
-* debounce（300ms）
-* requestIdleCallback（后台任务）
-* 虚拟滚动（长文）
-
----
-
-## 🧪 验收标准（必须满足）
-
-* 打字 10 分钟无卡顿
-* 光标稳定
-* 无明显 reflow
-* 切笔记无 loading
-
----
-
-## ❗ 常见错误（必须避免）
-
-* ❌ 在 onUpdate 中 setState
-* ❌ 输入时访问数据库
-* ❌ 使用 React 控制编辑器内容
-* ❌ 全量 Markdown 解析
-* ❌ 频繁创建 Editor 实例
-
----
-
-## 🧭 设计哲学
-
-编辑器不是"组件"，而是：
-
-> 一个高优先级的实时系统
-
-如果输入体验被破坏：
-
-👉 其他所有功能都没有意义
-
----
-
-## 🏗️ Phase 1 工程结构约束
-
-Phase 1 专用工程结构，必须严格遵守：
-
-```
-apps/web/src/
-├── editor/          # ⭐ 实时系统（不能被污染）
-│   ├── setup.ts     # TipTap 初始化
-│   ├── events.ts    # onUpdate / debounce
-│   └── markdown.ts  # 渐隐逻辑
-├── data/            # 后台系统（IndexedDB + Repository）
-│   ├── db.ts
-│   ├── repository.ts
-│   └── note.ts
-└── ui/              # 薄壳（渲染 + 挂载）
-    ├── EditorView.tsx
-    └── App.tsx
-```
-
-### 核心原则
-
-**editor 是独立系统**
-
-- 不依赖 store
-- 不依赖 API
-- 作为实时系统独立运行
-- 输入期间不被任何操作污染
-
-**data 是后台系统**
-
-- IndexedDB + Repository
-- 允许慢（debounce 300ms）
-- 不阻塞输入
-
-**ui 是壳**
-
-- 只负责渲染和挂载
-- 不参与逻辑
-- 保持最小化
-
-### 禁止在 Phase 1 创建
-
-```
-packages/ ❌
-apps/api/ ❌
-sync/ ❌
-tag/ ❌
-search/ ❌
-store/ ❌
-```
-
-### 文档映射
-
-```
-docs/EDITOR.md  ↔ src/editor/
-docs/DATA.md    ↔ src/data/
-```
-
-确保文档不会变废纸。
+当前最重要的不是增加编辑器功能，而是证明这套骨架在真实输入、切换、恢复场景下依然稳定。

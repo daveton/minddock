@@ -30,15 +30,17 @@ MindDock 开发路线图，分为三个阶段。
 apps/web/src/
 ├── editor/          # 实时系统
 │   ├── setup.ts
-│   ├── events.ts
-│   └── markdown.ts
+│   └── events.ts
 ├── data/            # 后台系统
 │   ├── db.ts
-│   ├── repository.ts
-│   └── note.ts
-└── ui/              # 薄壳
-    ├── EditorView.tsx
-    └── App.tsx
+│   ├── memory.ts
+│   └── repository.ts
+├── ui/              # 薄壳
+│   └── EditorView.tsx
+├── utils/
+│   └── debounce.ts
+├── main.tsx
+└── styles.css
 ```
 
 ### 约束
@@ -46,6 +48,21 @@ apps/web/src/
 - 不接 Zustand
 - 不接后端
 - 不加标签、搜索、同步
+
+### 当前最小实现进度
+
+- 已有 TipTap 编辑器骨架
+- 已有 IndexedDB 持久化
+- 已有默认 note 恢复
+- 已有多 note 新建与切换
+- 已有最小保存/离线状态反馈
+
+仍未完成：
+
+- 输入性能实测
+- 崩溃恢复验证
+- 保存失败路径验证
+- 多 tab 冲突策略
 
 ---
 

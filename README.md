@@ -2,6 +2,26 @@
 
 受 Bear 启发的高性能、本地优先笔记系统。
 
+当前仓库同时包含两层内容：
+
+- 规划文档：定义目标、约束、阶段和验收标准
+- 最小实现：一个可运行的 `Vite + React + TipTap + IndexedDB` 骨架，用于验证 Phase 1 架构方向
+
+## ⚠️ 项目基线
+
+后续所有任务都必须对齐并优先服务于以下三类内容：
+
+- 项目目标
+- 核心原则
+- 硬性约束
+
+执行规则：
+
+1. 默认先检查是否符合 `docs/CONSTRAINTS.md`
+2. 默认先保护输入体验、本地优先和可靠恢复
+3. 若局部实现与项目目标冲突，以目标、原则、约束为准，不以实现便利性为准
+4. 若新增任务可能影响输入路径、数据路径或阶段边界，必须先更新相关文档再继续实现
+
 ## ✨ 目标
 
 - 重现 Bear 般的写作体验（非 UI 复刻）
@@ -82,8 +102,12 @@ Remote API (FastAPI)
 前端：
 - React
 - TipTap (ProseMirror)
-- Zustand
-- TailwindCSS
+- Vite
+
+Phase 1 当前实现：
+- 不接 Zustand
+- 原生 CSS
+- 单页骨架 + 多 note 列表
 
 存储：
 - IndexedDB（本地缓存）
@@ -97,15 +121,28 @@ Remote API (FastAPI)
 
 ## 🚀 快速开始
 
-### 1. 启动前端
+### 1. 安装依赖
 
 ```bash
 cd apps/web
 npm install
+```
+
+### 2. 启动前端
+
+```bash
+cd apps/web
 npm run dev
 ```
 
-### 2. 启动后端（阶段 3）
+### 3. 构建
+
+```bash
+cd apps/web
+npm run build
+```
+
+### 4. 启动后端（阶段 3）
 
 ```bash
 cd apps/api
@@ -117,12 +154,23 @@ docker run -p 8000:8000 minddock-api
 
 ## 📦 功能（MVP）
 
-* [x] 快速编辑器（无延迟）
-* [x] 自动保存
-* [x] 本地缓存
+规划目标：
+
+* [x] 快速编辑器（目标已定义）
+* [x] 自动保存（目标已定义）
+* [x] 本地缓存（目标已定义）
 * [ ] 标签系统
 * [ ] 搜索
 * [ ] 同步
+
+当前已落地骨架：
+
+* [x] TipTap 编辑器初始化
+* [x] 300ms debounce 自动保存
+* [x] IndexedDB 持久化
+* [x] 默认 note 恢复
+* [x] 多 note 新建与切换
+* [x] 保存/离线状态展示
 
 ---
 
@@ -174,6 +222,48 @@ docker run -p 8000:8000 minddock-api
 我们是在重建无摩擦写作的感觉。
 
 编辑器是实时系统。其他一切都是后台系统。
+
+---
+
+## 🧱 当前代码结构
+
+```text
+apps/web/
+├── index.html
+├── package.json
+├── src/
+│   ├── data/
+│   │   ├── db.ts
+│   │   ├── memory.ts
+│   │   └── repository.ts
+│   ├── editor/
+│   │   ├── events.ts
+│   │   └── setup.ts
+│   ├── ui/
+│   │   └── EditorView.tsx
+│   ├── utils/
+│   │   └── debounce.ts
+│   ├── main.tsx
+│   └── styles.css
+├── tsconfig.json
+└── vite.config.ts
+```
+
+说明：
+
+- `editor/`：实时编辑器初始化与输入后保存绑定
+- `data/`：Memory + IndexedDB 的最小数据链路
+- `ui/`：当前唯一页面，包含 note 列表、状态反馈与编辑区
+
+---
+
+## 🧪 当前验证重点
+
+在继续扩功能前，先验证：
+
+1. 连续输入是否依然顺畅
+2. React 是否没有因输入产生不必要 re-render
+3. 新建/切换/刷新后内容是否可靠恢复
 
 ---
 

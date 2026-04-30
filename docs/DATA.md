@@ -1,6 +1,13 @@
 # Data Layer Design (MindDock)
 
-数据层设计文档，定义运行时数据源、持久化策略与 Repository 语义。
+数据层设计文档，定义运行时数据源、持久化策略、当前最小实现与后续演进边界。
+
+本文分两层：
+
+- 规划层：说明 Phase 1 应守住的核心数据原则
+- 实现层：说明当前仓库里已落地的数据流和接口
+
+如与 `docs/CONSTRAINTS.md` 冲突，以约束文档为准。
 
 ---
 
@@ -11,207 +18,261 @@
 - **Memory Cache**：运行时主数据源（快）
 - **IndexedDB**：持久化主数据源（稳）
 
-结论：
+当前结论：
 
-- 输入与切换流程优先读写内存层
-- 后台异步持久化到 IndexedDB
+- 输入结束后优先把内容整理为完整 note
+- Memory 负责降低切换和重复读取成本
+- IndexedDB 负责刷新后恢复与离线可靠性
 - 未来同步层只消费本地持久化结果
 
 ---
 
-## 2. Note Model（MVP）
+## 2. 当前 Note Model
+
+当前实现对应 [memory.ts](/Users/daveton/Desktop/minddock/apps/web/src/data/memory.ts:1)：
 
 ```ts
 type Note = {
   id: string
-  content: any           // TipTap JSON
-  createdAt: number
+  content: Record<string, unknown>
   updatedAt: number
-  title?: string         // 可选，便于列表展示
 }
+
+type NoteSummary = Pick<Note, 'id' | 'updatedAt'>
 ```
 
 说明：
 
 - `id`：note 唯一标识
-- `content`：编辑器内容（TipTap JSON）
-- `createdAt`：创建时间
-- `updatedAt`：更新时间，用于排序与冲突策略
-- `title`：可选标题（MVP 可由首行提取或独立维护）
+- `content`：TipTap JSON
+- `updatedAt`：最后一次本地可靠写入时间
+- `NoteSummary`：列表展示最小字段集
+
+当前未实现但规划中仍可能补充：
+
+- `createdAt`
+- `title`
+- `revision`
+- `syncStatus`
 
 ---
 
-## 3. Memory Layer（新增）
+## 3. Memory Layer
+
+当前实现：
 
 ```ts
-// apps/web/src/data/memory.ts
-const noteCache = new Map<string, Note>()
-let currentNoteId: string | null = null
+export const noteCache = new Map<string, Note>()
+
+export const noteSession = {
+  currentNoteId: null as string | null,
+}
 ```
 
 职责：
 
-- 提供低延迟读取
-- 管理当前编辑 Note
-- 减少频繁 IndexedDB 访问
+- 缓存已加载或已保存的 note
+- 记录当前编辑 note 的 `id`
+- 避免每次切换都重复命中 IndexedDB
 
 约束：
 
-- Memory 是运行时缓存，不替代持久化
-- 页面生命周期结束后，仍以 IndexedDB 恢复
+- Memory 只是运行时缓存，不替代持久化
+- 当前实现没有 LRU，也没有容量上限
+- 当前实现未处理多 tab 共享状态
+
+现状判断：
+
+- 这套简单结构足够支撑 Phase 1 最小骨架
+- 继续扩功能前，应补 `revision` 或多 tab 协调策略
 
 ---
 
 ## 4. IndexedDB Storage
+
+当前实现对应 [db.ts](/Users/daveton/Desktop/minddock/apps/web/src/data/db.ts:1)。
 
 数据库名：`minddock`  
 版本：`1`  
 Store：`notes`
 
 ```ts
-import { openDB } from 'idb'
-
-const db = await openDB('minddock', 1, {
+export const dbPromise = openDB('minddock', 1, {
   upgrade(db) {
-    db.createObjectStore('notes')
+    if (!db.objectStoreNames.contains('notes')) {
+      db.createObjectStore('notes')
+    }
   },
 })
 ```
 
-基础操作：
+当前特征：
 
-```ts
-await db.put('notes', note, note.id)
-const note = await db.get('notes', noteId)
-const notes = await db.getAll('notes')
-await db.delete('notes', noteId)
-```
+- 单 store：`notes`
+- key 使用 note `id`
+- value 存完整 `Note`
 
----
+现阶段没做的事：
 
-## 5. Repository Interface
-
-Repository 是统一数据入口，编辑器不直接操作存储。
-
-```ts
-interface Repository {
-  saveNote(note: Note): Promise<void>
-  getNote(id: string): Promise<Note | null>
-  listNotes(): Promise<Note[]>
-  deleteNote(id: string): Promise<void>
-}
-```
-
-### 5.1 语义约定（必须明确）
-
-- `saveNote(note)`：**全量覆盖保存（MVP）**，不做 diff/patch。
-- `getNote(id)`：优先读 Memory，未命中回退 IndexedDB。
-- `listNotes()`：从 IndexedDB 获取，再回填 Memory。
-- `deleteNote(id)`：同时删除 Memory 与 IndexedDB。
+- schema migration
+- 独立 metadata store
+- 搜索索引 store
+- sync queue store
 
 ---
 
-## 6. LocalRepository（Phase 1）
+## 5. Repository 语义
+
+当前实现对应 [repository.ts](/Users/daveton/Desktop/minddock/apps/web/src/data/repository.ts:1)。
+
+当前不是 class 形式的 `Repository`，而是一组最小函数接口：
 
 ```ts
-class LocalRepository implements Repository {
-  async saveNote(note: Note): Promise<void> {
-    noteCache.set(note.id, note)
-    await db.put('notes', note, note.id)
-  }
-
-  async getNote(id: string): Promise<Note | null> {
-    const cached = noteCache.get(id)
-    if (cached) return cached
-    const note = await db.get('notes', id)
-    if (note) noteCache.set(id, note)
-    return note ?? null
-  }
-
-  async listNotes(): Promise<Note[]> {
-    const notes = await db.getAll('notes')
-    for (const n of notes) noteCache.set(n.id, n)
-    return notes
-  }
-
-  async deleteNote(id: string): Promise<void> {
-    noteCache.delete(id)
-    await db.delete('notes', id)
-  }
-}
+saveCurrentNote(content)
+saveNoteById(noteId, content)
+loadNote(id)
+listNotes()
+createNote()
+ensureDefaultNote()
+setCurrentNote(id)
 ```
+
+语义约定：
+
+- `saveCurrentNote(content)`：保存当前活动 note
+- `saveNoteById(noteId, content)`：按 id 全量覆盖保存
+- `loadNote(id)`：优先读 Memory，未命中回退 IndexedDB
+- `listNotes()`：从 IndexedDB 拉全量，再按 `updatedAt` 倒序输出 summary
+- `createNote()`：创建空白 note 并立即写入本地
+- `ensureDefaultNote()`：保证系统首次启动至少有一条默认 note
+- `setCurrentNote(id)`：更新当前活动 note 标识
 
 ---
 
-## 7. Initialization（新增）
+## 6. 当前最小数据流
 
-页面初始化流程：
+当前代码里的实际链路是：
 
 ```text
-load last note from IndexedDB
-  → warmup Memory Cache
-  → set currentNoteId
-  → render editor content
-```
-
-目的：
-
-- 避免空白编辑器闪烁
-- 首次打开即恢复最近上下文
-
----
-
-## 8. Data Flow（更新）
-
-```text
-Editor
- ↓ (realtime)
-Memory Cache
- ↓ (debounced 300ms)
-Repository.saveNote
+TipTap update
  ↓
-IndexedDB
- ↓ (phase 3)
-Sync Queue
+debounce(300ms)
+ ↓
+saveCurrentNote(editor.getJSON())
+ ↓
+noteCache.set(noteId, note)
+ ↓
+IndexedDB.put('notes', note, noteId)
 ```
 
-原则：
+切换 note 时的链路：
 
-- 输入阶段不触发 IndexedDB 读写
-- 持久化在后台节流执行
-- 同步失败不影响本地读写
+```text
+click target note
+ ↓
+flush current note
+ ↓
+load target note
+ ↓
+editor.commands.setContent(note.content)
+ ↓
+update currentNoteId
+```
+
+初始化链路：
+
+```text
+ensureDefaultNote()
+ ↓
+load existing default note or create it
+ ↓
+set currentNoteId
+ ↓
+render note content
+ ↓
+listNotes() for sidebar
+```
 
 ---
 
-## 9. Phase 1 约束
+## 7. 当前已实现能力
 
-- 只使用 LocalRepository
-- 不接后端 API
-- 不引入同步冲突逻辑
-- 必须支持崩溃恢复与离线可用
+截至当前最小骨架，数据层已具备：
+
+- 默认 note 初始化
+- 本地 note 创建
+- 300ms 自动保存
+- Memory + IndexedDB 双层读写
+- note 列表恢复
+- note 切换前 flush
+- 列表按最近更新时间排序
+
+这些能力已经足以验证：
+
+- 本地优先方向是否成立
+- 多 note 流程是否会污染输入链路
+- 刷新后数据是否能恢复
 
 ---
 
-## 10. Phase 3 扩展字段（预留）
+## 8. 当前未完成项
 
-```ts
-type NoteMeta = {
-  id: string
-  updatedAt: number
-  lastSyncedAt?: number
-  syncStatus?: 'local_only' | 'queued' | 'synced' | 'failed'
-}
-```
+以下内容仍未进入实现：
 
-说明：`syncStatus` 仅用于同步可观测性，不进入输入关键路径。
+- `createdAt`
+- 标题提取或独立标题字段
+- note 删除
+- schema migration
+- LRU cache
+- 崩溃快照
+- 多 tab 冲突检测
+- 同步 metadata
 
+这些缺口目前不会阻止 Phase 1 骨架验证，但会影响后续可靠性和可扩展性。
 
-## 11. Memory Cache 策略（新增）
+---
 
-为避免内存层无限增长，MVP 约束：
+## 9. 设计边界
 
-- Cache 上限：最近 200 条 note
-- 淘汰策略：按最近访问时间 LRU
-- 预热策略：启动时预热最近 20 条
+当前实现仍然遵守以下边界：
 
-说明：超出上限只淘汰内存副本，不影响 IndexedDB 持久化。
+- Editor 不直接访问 IndexedDB
+- UI 不直接操作 IndexedDB
+- 所有持久化都经 `repository.ts`
+
+但有一个现实差异需要明确：
+
+- `saveCurrentNote` 是在 debounce 后执行的异步持久化
+- 它不在 `keydown → transaction` 热路径里
+- 因此当前实现仍符合“输入热路径不打数据库”的规划目标
+
+---
+
+## 10. 已知风险
+
+当前数据层最值得关注的风险：
+
+1. `listNotes()` 目前每次刷新列表都读全量 IndexedDB，数据量大时可能退化。
+2. `currentNoteId` 只保存在运行时内存，没有单独持久化最近会话状态。
+3. 当前没有 `revision`，多窗口同时编辑可能静默覆盖。
+4. `saveNoteById` 为全量覆盖，未来若 note 很大会增加写入成本。
+
+这些风险在 Phase 1 可接受，但应在进入 Phase 2 前重新评估。
+
+---
+
+## 11. 下一步建议
+
+按优先级建议补充：
+
+1. `createdAt`
+2. note 删除接口
+3. 最近活动 note 持久化
+4. 保存失败后的可恢复缓存策略
+5. `revision` 字段
+
+若准备推进搜索或标签，再考虑：
+
+6. 独立 metadata store
+7. 索引构建策略
+8. schema migration 文档
