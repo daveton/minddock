@@ -42,3 +42,4 @@
 - 若新增阶段目标，需先补 Gate，再写实现方案。
 - 若实现状态发生明显变化，需同步更新 `README.md` 的“快速开始 / 当前代码结构 / 当前验证重点”。
 - 若文档冲突，优先级：`CONSTRAINTS` > `ROADMAP` > `PRODUCT` > `UIUX` > `DESIGN/EDITOR/DATA` > `README`。
+- **禁止删除项目的目标、原则和约束，只能补充或优化表述。**
