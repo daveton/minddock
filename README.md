@@ -27,9 +27,9 @@
 
 Note:
 - id: string
-- content: string (Markdown)
-- created_at: number
-- updated_at: number
+- content: TipTap JSON（内部） / Markdown（导出）
+- createdAt: number
+- updatedAt: number
 
 Tag:
 - id: string
@@ -134,6 +134,15 @@ docker run -p 8000:8000 minddock-api
 
 ---
 
+
+## 📏 性能测量协议（新增）
+
+- 指标口径：输入延迟使用 p95（单次会话持续输入 10 分钟）
+- 采样点：`keydown` 到 transaction 完成
+- 回归门槛：超过 16ms 立即阻断进入下一阶段
+
+---
+
 ## ⚠️ 非目标
 
 * 像素级复刻 Bear
@@ -168,10 +177,20 @@ docker run -p 8000:8000 minddock-api
 
 ---
 
+## 📚 文档使用方式（推荐）
+
+1. 先读 [项目约束](./docs/CONSTRAINTS.md)（硬性要求）
+2. 再读 [路线图](./docs/ROADMAP.md)（阶段与 Gate）
+3. 最后按需阅读设计/编辑器/数据细节
+
 ## 📚 文档
 
+- [文档结构规划](./docs/DOCS_INDEX.md)
+- [项目约束](./docs/CONSTRAINTS.md)
+- [产品定义](./docs/PRODUCT.md)
+- [UI/UX 规范](./docs/UIUX.md)
 - [设计文档](./docs/DESIGN.md)
-- [架构文档](./docs/ARCHITECTURE.md)
+- [可行性分析](./docs/FEASIBILITY.md)
 - [编辑器文档](./docs/EDITOR.md)
 - [数据层文档](./docs/DATA.md)
-- [性能文档](./docs/PERFORMANCE.md)
+- [路线图](./docs/ROADMAP.md)
