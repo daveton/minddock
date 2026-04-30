@@ -63,6 +63,7 @@ textarea {
 .brand-block,
 .principles-card,
 .roadmap-card,
+.notes-card,
 .editor-card {
   border: 1px solid var(--line);
   border-radius: 28px;
@@ -107,7 +108,8 @@ textarea {
 }
 
 .principles-card,
-.roadmap-card {
+.roadmap-card,
+.notes-card {
   padding: 22px 24px;
 }
 
@@ -117,6 +119,62 @@ textarea {
   padding-left: 20px;
   color: var(--ink);
   line-height: 1.8;
+}
+
+.notes-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.note-action,
+.note-row {
+  border: 0;
+  cursor: pointer;
+}
+
+.note-action {
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: var(--accent);
+  color: #fff8ef;
+  font-size: 0.88rem;
+  transition: transform 160ms ease, opacity 160ms ease;
+}
+
+.note-action:hover,
+.note-row:hover {
+  transform: translateY(-1px);
+}
+
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.note-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: rgba(255, 250, 240, 0.86);
+  color: var(--ink);
+  text-align: left;
+}
+
+.note-row span:last-child {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.note-row[data-active='true'] {
+  background: var(--accent-soft);
 }
 
 .workspace {

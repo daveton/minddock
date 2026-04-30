@@ -4,6 +4,8 @@ export type Note = {
   updatedAt: number
 }
 
+export type NoteSummary = Pick<Note, 'id' | 'updatedAt'>
+
 export const noteCache = new Map<string, Note>()
 
 export const noteSession = {

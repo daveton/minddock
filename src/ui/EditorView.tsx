@@ -1,8 +1,16 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/core'
 import { bindEditorEvents } from '../editor/events'
 import { createEditor } from '../editor/setup'
-import { ensureDefaultNote } from '../data/repository'
+import {
+  createNote,
+  ensureDefaultNote,
+  listNotes,
+  loadNote,
+  saveNoteById,
+  setCurrentNote,
+} from '../data/repository'
+import type { NoteSummary } from '../data/memory'
 
 export default function EditorView() {
   const editorRef = useRef<Editor | null>(null)
@@ -10,6 +18,9 @@ export default function EditorView() {
   const saveBadgeRef = useRef<HTMLSpanElement>(null)
   const networkBadgeRef = useRef<HTMLSpanElement>(null)
   const updatedAtRef = useRef<HTMLParagraphElement>(null)
+  const activeNoteIdRef = useRef<string>('note-1')
+  const [notes, setNotes] = useState<NoteSummary[]>([])
+  const [activeNoteId, setActiveNoteId] = useState('note-1')
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -36,19 +47,33 @@ export default function EditorView() {
       updatedAtRef.current.textContent = `Last local write ${new Date().toLocaleTimeString()}`
     }
 
+    const refreshNotes = async (nextActiveId?: string) => {
+      const allNotes = await listNotes()
+      setNotes(allNotes)
+
+      if (nextActiveId) {
+        activeNoteIdRef.current = nextActiveId
+        setActiveNoteId(nextActiveId)
+      }
+    }
+
     const unbind = bindEditorEvents(editor, {
       onSaving: () => setStatus('Saving locally', 'live'),
-      onSaved: () => {
+      onSaved: async () => {
         setStatus('Saved', 'idle')
         updateTimestamp()
+        await refreshNotes(activeNoteIdRef.current)
       },
       onError: () => setStatus('Save failed', 'error'),
     })
 
     const init = async () => {
       const note = await ensureDefaultNote()
+      activeNoteIdRef.current = note.id
+      setActiveNoteId(note.id)
       editor.commands.setContent(note.content)
       updateTimestamp()
+      await refreshNotes(note.id)
     }
 
     const syncNetworkState = () => {
@@ -74,6 +99,88 @@ export default function EditorView() {
       editor.destroy()
     }
   }, [])
+
+  const flushActiveNote = async () => {
+    const editor = editorRef.current
+    if (!editor) {
+      return
+    }
+
+    const noteId = activeNoteIdRef.current
+    await saveNoteById(noteId, editor.getJSON())
+  }
+
+  const handleCreateNote = async () => {
+    const editor = editorRef.current
+    if (!editor) {
+      return
+    }
+
+    try {
+      if (activeNoteIdRef.current) {
+        await flushActiveNote()
+      }
+
+      const note = await createNote()
+      setCurrentNote(note.id)
+      activeNoteIdRef.current = note.id
+      setActiveNoteId(note.id)
+      editor.commands.setContent(note.content)
+      if (updatedAtRef.current) {
+        updatedAtRef.current.textContent = `Last local write ${new Date(
+          note.updatedAt,
+        ).toLocaleTimeString()}`
+      }
+      setNotes(await listNotes())
+    } catch {
+      if (saveBadgeRef.current) {
+        saveBadgeRef.current.textContent = 'Save failed'
+        saveBadgeRef.current.dataset.tone = 'error'
+      }
+    }
+  }
+
+  const handleSwitchNote = async (noteId: string) => {
+    const editor = editorRef.current
+    if (!editor || noteId === activeNoteIdRef.current) {
+      return
+    }
+
+    try {
+      if (saveBadgeRef.current) {
+        saveBadgeRef.current.textContent = 'Saving before switch'
+        saveBadgeRef.current.dataset.tone = 'live'
+      }
+
+      await flushActiveNote()
+      const nextNote = await loadNote(noteId)
+      if (!nextNote) {
+        return
+      }
+
+      setCurrentNote(noteId)
+      activeNoteIdRef.current = noteId
+      setActiveNoteId(noteId)
+      editor.commands.setContent(nextNote.content)
+
+      if (updatedAtRef.current) {
+        updatedAtRef.current.textContent = `Last local write ${new Date(
+          nextNote.updatedAt,
+        ).toLocaleTimeString()}`
+      }
+
+      if (saveBadgeRef.current) {
+        saveBadgeRef.current.textContent = 'Saved'
+        saveBadgeRef.current.dataset.tone = 'idle'
+      }
+      setNotes(await listNotes())
+    } catch {
+      if (saveBadgeRef.current) {
+        saveBadgeRef.current.textContent = 'Save failed'
+        saveBadgeRef.current.dataset.tone = 'error'
+      }
+    }
+  }
 
   return (
     <div className="page-shell">
@@ -105,6 +212,31 @@ export default function EditorView() {
             <li>Sync as an enhancement layer</li>
           </ol>
         </div>
+
+        <div className="notes-card">
+          <div className="notes-card-header">
+            <p className="section-label">Notes</p>
+            <button type="button" className="note-action" onClick={handleCreateNote}>
+              New
+            </button>
+          </div>
+          <div className="notes-list">
+            {notes.map((note) => (
+              <button
+                key={note.id}
+                type="button"
+                className="note-row"
+                data-active={note.id === activeNoteId}
+                onClick={() => {
+                  void handleSwitchNote(note.id)
+                }}
+              >
+                <span>{note.id}</span>
+                <span>{new Date(note.updatedAt).toLocaleTimeString()}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </aside>
 
       <main className="workspace">
@@ -126,7 +258,7 @@ export default function EditorView() {
 
         <section className="editor-card">
           <div className="note-meta">
-            <p className="note-title">note-1</p>
+            <p className="note-title">{activeNoteId}</p>
             <p ref={updatedAtRef} className="note-updated">
               Last local write --
             </p>
