@@ -1,0 +1,256 @@
+:root {
+  color-scheme: light;
+  --bg: #f4eee2;
+  --bg-strong: #eadfca;
+  --paper: rgba(255, 252, 246, 0.88);
+  --paper-strong: #fffaf0;
+  --ink: #1f1b16;
+  --muted: #6b6257;
+  --line: rgba(53, 42, 26, 0.12);
+  --accent: #c65d2e;
+  --accent-soft: #f0c9a9;
+  --ok: #2f6b52;
+  --warn: #a75030;
+  --live: #8b6b16;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(198, 93, 46, 0.18), transparent 28%),
+    radial-gradient(circle at right 20%, rgba(71, 114, 101, 0.18), transparent 24%),
+    linear-gradient(180deg, #f7f1e6 0%, #efe4d4 100%);
+  color: var(--ink);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  min-height: 100vh;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+.page-shell {
+  display: grid;
+  grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+  gap: 24px;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.sidebar,
+.workspace {
+  position: relative;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.brand-block,
+.principles-card,
+.roadmap-card,
+.editor-card {
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: var(--paper);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 24px 60px rgba(69, 44, 15, 0.08);
+}
+
+.brand-block {
+  padding: 28px;
+}
+
+.eyebrow,
+.section-label {
+  margin: 0 0 10px;
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.brand-block h1,
+.workspace-header h2 {
+  margin: 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", serif;
+  font-weight: 700;
+  line-height: 0.96;
+}
+
+.brand-block h1 {
+  font-size: clamp(2.5rem, 4vw, 4.8rem);
+  max-width: 8ch;
+}
+
+.lede {
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.7;
+  max-width: 36ch;
+}
+
+.principles-card,
+.roadmap-card {
+  padding: 22px 24px;
+}
+
+.principles-card ul,
+.roadmap-card ol {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--ink);
+  line-height: 1.8;
+}
+
+.workspace {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.workspace-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 8px 4px;
+}
+
+.workspace-header h2 {
+  font-size: clamp(2rem, 3vw, 3rem);
+}
+
+.status-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.status-pill {
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  padding: 10px 14px;
+  background: rgba(255, 250, 240, 0.9);
+  color: var(--muted);
+  font-size: 0.88rem;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.status-pill[data-tone='idle'] {
+  color: var(--ok);
+}
+
+.status-pill[data-tone='live'] {
+  color: var(--live);
+  border-color: rgba(139, 107, 22, 0.22);
+  background: rgba(245, 230, 184, 0.9);
+}
+
+.status-pill[data-tone='error'] {
+  color: var(--warn);
+  border-color: rgba(167, 80, 48, 0.24);
+  background: rgba(246, 214, 205, 0.96);
+}
+
+.editor-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  padding: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 250, 240, 0.92), rgba(255, 248, 236, 0.96)),
+    var(--paper-strong);
+}
+
+.note-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 8px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.note-title,
+.note-updated {
+  margin: 0;
+}
+
+.note-title {
+  font-weight: 700;
+}
+
+.note-updated {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.editor-host {
+  min-height: 60vh;
+  padding: 28px 18px 18px;
+}
+
+.minddock-editor {
+  outline: none;
+  min-height: 100%;
+  color: var(--ink);
+  font-family: "Iowan Old Style", "Palatino Linotype", serif;
+  font-size: clamp(1.08rem, 1.2vw, 1.18rem);
+  line-height: 1.72;
+}
+
+.minddock-editor p {
+  margin: 0 0 1rem;
+}
+
+.minddock-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: rgba(107, 98, 87, 0.52);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 920px) {
+  .page-shell {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .workspace-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .status-row {
+    justify-content: flex-start;
+  }
+
+  .editor-host {
+    min-height: 48vh;
+  }
+}
