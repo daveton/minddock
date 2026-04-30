@@ -193,4 +193,6 @@ docker run -p 8000:8000 minddock-api
 - [可行性分析](./docs/FEASIBILITY.md)
 - [编辑器文档](./docs/EDITOR.md)
 - [数据层文档](./docs/DATA.md)
+- [失败路径与恢复策略](./docs/FAILURE_MODES.md)
+- [性能验证方案](./docs/PERF_PLAN.md)
 - [路线图](./docs/ROADMAP.md)

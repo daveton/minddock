@@ -10,7 +10,9 @@
 6. `docs/DESIGN.md`：系统设计
 7. `docs/EDITOR.md`：编辑器实时系统细节
 8. `docs/DATA.md`：数据层与存储策略
-9. `docs/FEASIBILITY.md`：可行性与风险评估
+9. `docs/FAILURE_MODES.md`：失败路径、降级策略与恢复语义
+10. `docs/PERF_PLAN.md`：性能口径、测试场景与验收方案
+11. `docs/FEASIBILITY.md`：可行性与风险评估
 
 ---
 
@@ -22,6 +24,8 @@
 - **PRODUCT**：面向产品决策，说明“用户为什么会持续使用”。
 - **UIUX**：面向体验落地，说明“用户如何感知系统质量”。
 - **DESIGN/EDITOR/DATA**：面向实现，说明“怎么做”。
+- **FAILURE_MODES**：面向可靠性设计，说明“失败时如何表现与恢复”。
+- **PERF_PLAN**：面向验证，说明“如何证明系统真的达标”。
 - **FEASIBILITY**：面向决策，说明“为什么这样做可行”。
 
 ---
