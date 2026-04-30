@@ -154,9 +154,9 @@ class SyncRepository implements Repository {
 ```ts
 type Note = {
   id: string
-  content: string // Markdown
-  created_at: number
-  updated_at: number
+  content: any // TipTap JSON (内部), Markdown 用于导出/导入
+  createdAt: number
+  updatedAt: number
 }
 ```
 
@@ -166,7 +166,7 @@ type Note = {
 
 - 输入后 300ms（debounce）触发保存
 - 保存内容为完整 note（不做 diff，MVP）
-- 每次保存更新 updated_at
+- 每次保存更新 updatedAt
 - 保存失败不影响 UI（乐观更新）
 
 未来优化：
@@ -444,3 +444,15 @@ Editor 实例的生命周期管理：
 - 使用 React DevTools 检查 render 次数
 - 使用 Performance 面板检查主线程阻塞
 - 检查是否有同步 IndexedDB 操作
+
+
+## 15. 性能与一致性可观测性（新增）
+
+必须补充最小可观测性：
+
+- 输入延迟：记录 p50/p95
+- 打开笔记耗时：记录 p95
+- 保存失败率：按会话统计
+- 同步冲突计数（Phase 3）：按天统计
+
+没有可观测性，不允许宣称 Gate 通过。
