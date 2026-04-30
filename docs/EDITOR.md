@@ -94,6 +94,7 @@ saveCurrentNote(editor.getJSON())
 - 零 React 受控内容
 - 300ms debounce 自动保存
 - 初始内容恢复
+- 最近活动 note 恢复
 - note 切换前 flush
 - note 切换后 `setContent`
 - 保存状态反馈
@@ -152,6 +153,10 @@ saveCurrentNote(editor.getJSON())
 
 - 保存状态：`Saved` / `Saving locally` / `Save failed`
 - 网络状态：`Offline-first / online` / `Offline editing`
+
+另外已实现一条内联错误提示：
+
+- 最近一次本地保存失败时，编辑区上方显示失败原因摘要
 
 意义：
 

@@ -7,6 +7,7 @@ import {
 } from './memory'
 
 const DEFAULT_NOTE_ID = 'note-1'
+const LAST_ACTIVE_NOTE_KEY = 'minddock:last-active-note-id'
 
 export async function saveCurrentNote(content: Record<string, unknown>) {
   const noteId = ensureCurrentNoteId()
@@ -48,15 +49,16 @@ export async function loadNote(id: string) {
 }
 
 export async function ensureDefaultNote() {
-  setCurrentNote(DEFAULT_NOTE_ID)
+  const startupNoteId = getStartupNoteId()
+  setCurrentNote(startupNoteId)
 
-  const existing = await loadNote(DEFAULT_NOTE_ID)
+  const existing = await loadNote(startupNoteId)
   if (existing) {
     return existing
   }
 
   const emptyNote: Note = {
-    id: DEFAULT_NOTE_ID,
+    id: startupNoteId,
     content: {
       type: 'doc',
       content: [
@@ -74,9 +76,9 @@ export async function ensureDefaultNote() {
     updatedAt: Date.now(),
   }
 
-  noteCache.set(DEFAULT_NOTE_ID, emptyNote)
+  noteCache.set(startupNoteId, emptyNote)
   const db = await dbPromise
-  await db.put('notes', emptyNote, DEFAULT_NOTE_ID)
+  await db.put('notes', emptyNote, startupNoteId)
 
   return emptyNote
 }
@@ -121,12 +123,29 @@ export async function createNote() {
 
 export function setCurrentNote(id: string) {
   noteSession.currentNoteId = id
+  persistLastActiveNoteId(id)
 }
 
 function ensureCurrentNoteId() {
   if (!noteSession.currentNoteId) {
-    noteSession.currentNoteId = DEFAULT_NOTE_ID
+    noteSession.currentNoteId = getStartupNoteId()
   }
 
   return noteSession.currentNoteId
+}
+
+function getStartupNoteId() {
+  if (typeof window === 'undefined') {
+    return DEFAULT_NOTE_ID
+  }
+
+  return window.localStorage.getItem(LAST_ACTIVE_NOTE_KEY) ?? DEFAULT_NOTE_ID
+}
+
+function persistLastActiveNoteId(id: string) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.setItem(LAST_ACTIVE_NOTE_KEY, id)
 }

@@ -272,6 +272,17 @@ textarea {
   padding: 28px 18px 18px;
 }
 
+.inline-alert {
+  margin: 16px 8px 0;
+  border-radius: 16px;
+  border: 1px solid rgba(167, 80, 48, 0.22);
+  background: rgba(246, 214, 205, 0.85);
+  color: var(--warn);
+  padding: 12px 14px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
 .minddock-editor {
   outline: none;
   min-height: 100%;

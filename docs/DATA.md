@@ -146,6 +146,7 @@ setCurrentNote(id)
 - `createNote()`：创建空白 note 并立即写入本地
 - `ensureDefaultNote()`：保证系统首次启动至少有一条默认 note
 - `setCurrentNote(id)`：更新当前活动 note 标识
+- 最近活动 note 会额外写入本地会话存储，用于刷新后恢复当前上下文
 
 ---
 
@@ -203,6 +204,7 @@ listNotes() for sidebar
 - 本地 note 创建
 - 300ms 自动保存
 - Memory + IndexedDB 双层读写
+- 最近活动 note 恢复
 - note 列表恢复
 - note 切换前 flush
 - 列表按最近更新时间排序
@@ -253,9 +255,9 @@ listNotes() for sidebar
 当前数据层最值得关注的风险：
 
 1. `listNotes()` 目前每次刷新列表都读全量 IndexedDB，数据量大时可能退化。
-2. `currentNoteId` 只保存在运行时内存，没有单独持久化最近会话状态。
-3. 当前没有 `revision`，多窗口同时编辑可能静默覆盖。
-4. `saveNoteById` 为全量覆盖，未来若 note 很大会增加写入成本。
+2. 当前没有 `revision`，多窗口同时编辑可能静默覆盖。
+3. `saveNoteById` 为全量覆盖，未来若 note 很大会增加写入成本。
+4. 最近活动 note 目前使用 `localStorage` 保存，仅解决单设备单浏览器的会话恢复。
 
 这些风险在 Phase 1 可接受，但应在进入 Phase 2 前重新评估。
 

@@ -21,6 +21,7 @@ export default function EditorView() {
   const activeNoteIdRef = useRef<string>('note-1')
   const [notes, setNotes] = useState<NoteSummary[]>([])
   const [activeNoteId, setActiveNoteId] = useState('note-1')
+  const [saveErrorDetail, setSaveErrorDetail] = useState<string | null>(null)
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -58,13 +59,22 @@ export default function EditorView() {
     }
 
     const unbind = bindEditorEvents(editor, {
-      onSaving: () => setStatus('Saving locally', 'live'),
+      onSaving: () => {
+        setSaveErrorDetail(null)
+        setStatus('Saving locally', 'live')
+      },
       onSaved: async () => {
+        setSaveErrorDetail(null)
         setStatus('Saved', 'idle')
         updateTimestamp()
         await refreshNotes(activeNoteIdRef.current)
       },
-      onError: () => setStatus('Save failed', 'error'),
+      onError: () => {
+        setStatus('Save failed', 'error')
+        setSaveErrorDetail(
+          'Latest changes are still in memory, but the last local write did not complete.',
+        )
+      },
     })
 
     const init = async () => {
@@ -125,6 +135,7 @@ export default function EditorView() {
       setCurrentNote(note.id)
       activeNoteIdRef.current = note.id
       setActiveNoteId(note.id)
+      setSaveErrorDetail(null)
       editor.commands.setContent(note.content)
       if (updatedAtRef.current) {
         updatedAtRef.current.textContent = `Last local write ${new Date(
@@ -137,6 +148,9 @@ export default function EditorView() {
         saveBadgeRef.current.textContent = 'Save failed'
         saveBadgeRef.current.dataset.tone = 'error'
       }
+      setSaveErrorDetail(
+        'The current note could not be written locally before creating a new note.',
+      )
     }
   }
 
@@ -155,12 +169,14 @@ export default function EditorView() {
       await flushActiveNote()
       const nextNote = await loadNote(noteId)
       if (!nextNote) {
+        setSaveErrorDetail('The selected note could not be loaded from local storage.')
         return
       }
 
       setCurrentNote(noteId)
       activeNoteIdRef.current = noteId
       setActiveNoteId(noteId)
+      setSaveErrorDetail(null)
       editor.commands.setContent(nextNote.content)
 
       if (updatedAtRef.current) {
@@ -179,6 +195,9 @@ export default function EditorView() {
         saveBadgeRef.current.textContent = 'Save failed'
         saveBadgeRef.current.dataset.tone = 'error'
       }
+      setSaveErrorDetail(
+        'Switch was stopped because the current note could not be written locally.',
+      )
     }
   }
 
@@ -263,6 +282,11 @@ export default function EditorView() {
               Last local write --
             </p>
           </div>
+          {saveErrorDetail ? (
+            <div className="inline-alert" role="status" aria-live="polite">
+              {saveErrorDetail}
+            </div>
+          ) : null}
           <div ref={containerRef} className="editor-host" />
         </section>
       </main>
