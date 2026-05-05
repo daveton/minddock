@@ -7,6 +7,33 @@
 - 规划文档：定义目标、约束、阶段和验收标准
 - 最小实现：一个可运行的 `Vite + React + TipTap + IndexedDB` 骨架，用于验证 Phase 1 架构方向
 
+## 当前状态
+
+项目目前处于 `Phase 1 / 本地编辑器验证` 阶段，已经完成最小可运行骨架，但还没有通过进入 Phase 2 所需的 Gate。
+
+当前代码已验证：
+
+- TipTap 编辑器初始化
+- 300ms debounce 自动保存
+- IndexedDB 持久化
+- 默认 note 恢复
+- 多 note 新建与切换
+- 保存/离线状态展示
+
+当前仍未完成：
+
+- 输入性能实测与记录
+- 崩溃恢复验证
+- 保存失败路径验证
+- 多 tab 冲突策略
+
+建议先读：
+
+1. `docs/CONSTRAINTS.md`
+2. `docs/PROJECT_STATUS.md`
+3. `docs/ROADMAP.md`
+4. `docs/DOCS_INDEX.md`
+
 ## ⚠️ 项目基线
 
 后续所有任务都必须对齐并优先服务于以下三类内容：
@@ -142,13 +169,9 @@ cd apps/web
 npm run build
 ```
 
-### 4. 启动后端（阶段 3）
+### 4. 后端说明
 
-```bash
-cd apps/api
-docker build -t minddock-api .
-docker run -p 8000:8000 minddock-api
-```
+`apps/api` 仍未创建。后端属于 `Phase 3` 规划内容，不是当前仓库的已实现部分。
 
 ---
 
@@ -171,6 +194,13 @@ docker run -p 8000:8000 minddock-api
 * [x] 默认 note 恢复
 * [x] 多 note 新建与切换
 * [x] 保存/离线状态展示
+
+当前阻塞进入下一阶段的工作：
+
+* [ ] 建立性能测量与记录流程
+* [ ] 验证恢复与失败路径
+* [ ] 定义多 tab 冲突策略
+* [ ] 补齐 Phase 1 Gate 验收记录
 
 ---
 
@@ -216,7 +246,11 @@ docker run -p 8000:8000 minddock-api
 
 ---
 
-## 🧭 理念
+## 🧭 文档入口
+
+- `docs/DOCS_INDEX.md`：文档地图
+- `docs/PROJECT_STATUS.md`：当前状态、风险、下一步
+- `docs/ISSUES_AND_MILESTONES.md`：按阶段拆分的任务与验收
 
 我们不是在重建 Bear。
 我们是在重建无摩擦写作的感觉。
