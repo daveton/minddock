@@ -14,6 +14,7 @@ import {
 } from '../data/repository';
 import type { Note, NoteSummary } from '../data/memory';
 import { analyzeNoteContent, findRelatedNotes } from '../data/knowledgeAnalysis';
+import { saveMarkdownFile } from '../import-export/fileSystem';
 import { serializeMarkdown } from '../import-export/markdown';
 
 const bearSections = [
@@ -165,6 +166,8 @@ const translations = {
     saveFailedDetail: 'Latest changes are cached in this browser. This note is marked unsaved in the list.',
     saveFailedSwitchDetail: 'Latest changes were cached in this browser, so switching can continue.',
     saved: 'Saved',
+    savedMarkdownDisk: 'Saved to disk',
+    savedMarkdownDownload: 'Markdown downloaded',
     savingBeforeNewNote: 'Saving before new note',
     savingBeforeSwitch: 'Saving before switch',
     savingLocally: 'Saving locally',
@@ -226,6 +229,8 @@ const translations = {
     saveFailedDetail: '最新更改已缓存在本浏览器中，并会在列表里标记为未保存。',
     saveFailedSwitchDetail: '最新更改已缓存在本浏览器中，可以继续切换笔记。',
     saved: '已保存',
+    savedMarkdownDisk: '已保存到磁盘',
+    savedMarkdownDownload: 'Markdown 已下载',
     savingBeforeNewNote: '新建前保存中',
     savingBeforeSwitch: '切换前保存中',
     savingLocally: '本地保存中',
@@ -930,11 +935,32 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
 
   const handleExportMarkdown = async () => {
     const editor = editorRef.current;
-    if (!editor) return;
+    const noteId = activeNoteIdRef.current;
+    if (!editor || !noteId) return;
 
-    const markdown = serializeMarkdown(editor.getJSON());
-    await navigator.clipboard.writeText(markdown);
-    setSaveState({ labelKey: 'copiedMarkdown', tone: 'idle', detailKey: null });
+    try {
+      await flushActiveNote();
+      const markdown = serializeMarkdown(editor.getJSON());
+      const result = await saveMarkdownFile(noteId, markdown, activeTitle);
+
+      if (result.mode === 'cancelled') {
+        return;
+      }
+
+      setSaveState({
+        labelKey: result.mode === 'file-system' ? 'savedMarkdownDisk' : 'savedMarkdownDownload',
+        tone: 'idle',
+        detailKey: null,
+      });
+    } catch {
+      try {
+        const markdown = serializeMarkdown(editor.getJSON());
+        await navigator.clipboard.writeText(markdown);
+        setSaveState({ labelKey: 'copiedMarkdown', tone: 'idle', detailKey: null });
+      } catch {
+        setSaveState({ labelKey: 'saveFailed', tone: 'error', detailKey: 'saveFailedDetail' });
+      }
+    }
   };
 
   const focusEditor = () => editorRef.current?.chain().focus();
