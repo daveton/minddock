@@ -1,11 +1,13 @@
 import { noteCache } from './memory'
 import { dbPromise } from './db'
-import type { Note, NoteSummary } from './memory'
+import type { Note, NoteSnapshot, NoteSummary } from './memory'
 import { handleStorageError, StorageError } from './errorHandler'
 import { noteSession } from './memory'
+import { normalizeDocument } from './documentModel'
 
 const DEFAULT_NOTE_ID = 'note-1'
 const LAST_ACTIVE_NOTE_KEY = 'minddock:last-active-note-id'
+const MAX_SNAPSHOTS_PER_NOTE = 20
 
 export async function saveCurrentNote(content: Record<string, unknown>) {
   const noteId = ensureCurrentNoteId()
@@ -17,16 +19,25 @@ export async function saveNoteById(
   content: Record<string, unknown>,
 ): Promise<{ success: boolean; error?: StorageError }> {
   try {
+    const normalized = normalizeDocument(content)
     const note: Note = {
       id: noteId,
-      content,
+      content: normalized.document,
       updatedAt: Date.now(),
     }
 
     noteCache.set(noteId, note)
 
     const db = await dbPromise
-    await db.put('notes', note, noteId)
+    const tx = db.transaction(['notes', 'noteSnapshots'], 'readwrite')
+    await tx.objectStore('notes').put(note, noteId)
+    await tx.objectStore('noteSnapshots').put(createSnapshot(note, normalized.repaired ? 'repair' : 'save'))
+    await tx.done
+    await pruneSnapshots(noteId)
+
+    if (normalized.issues.length > 0) {
+      console.info('[DOCUMENT_REPAIR]', normalized.issues)
+    }
 
     return { success: true }
   } catch (error) {
@@ -39,17 +50,19 @@ export async function saveNoteById(
 export async function loadNote(id: string) {
   const cached = noteCache.get(id)
   if (cached) {
-    return cached
+    return repairLoadedNote(cached)
   }
 
   const db = await dbPromise
   const note = await db.get('notes', id)
 
   if (note) {
-    noteCache.set(id, note)
+    const repaired = await repairLoadedNote(note)
+    noteCache.set(id, repaired)
+    return repaired
   }
 
-  return note ?? null
+  return recoverNoteFromSnapshot(id)
 }
 
 export async function ensureDefaultNote() {
@@ -67,7 +80,7 @@ export async function ensureDefaultNote() {
 
   const emptyNote: Note = {
     id: startupNoteId,
-    content: {
+    content: normalizeDocument({
       type: 'doc',
       content: [
         {
@@ -80,13 +93,16 @@ export async function ensureDefaultNote() {
           ],
         },
       ],
-    },
+    }).document,
     updatedAt: Date.now(),
   }
 
   noteCache.set(startupNoteId, emptyNote)
   const db = await dbPromise
-  await db.put('notes', emptyNote, startupNoteId)
+  const tx = db.transaction(['notes', 'noteSnapshots'], 'readwrite')
+  await tx.objectStore('notes').put(emptyNote, startupNoteId)
+  await tx.objectStore('noteSnapshots').put(createSnapshot(emptyNote, 'recovery'))
+  await tx.done
 
   const recoveryTime = performance.now() - recoveryStart
   console.log(`[CRASH_RECOVERY] Created new note in ${recoveryTime.toFixed(2)}ms`)
@@ -107,22 +123,103 @@ export async function createNote() {
   const noteId = `note-${crypto.randomUUID().slice(0, 8)}`
   const note: Note = {
     id: noteId,
-    content: {
+    content: normalizeDocument({
       type: 'doc',
       content: [
         {
           type: 'paragraph',
         },
       ],
-    },
+    }).document,
     updatedAt: Date.now(),
   }
 
   noteCache.set(noteId, note)
   const db = await dbPromise
-  await db.put('notes', note, noteId)
+  const tx = db.transaction(['notes', 'noteSnapshots'], 'readwrite')
+  await tx.objectStore('notes').put(note, noteId)
+  await tx.objectStore('noteSnapshots').put(createSnapshot(note, 'recovery'))
+  await tx.done
 
   return note
+}
+
+async function repairLoadedNote(note: Note) {
+  const normalized = normalizeDocument(note.content)
+  if (!normalized.repaired) {
+    return note
+  }
+
+  const repairedNote: Note = {
+    ...note,
+    content: normalized.document,
+    updatedAt: Date.now(),
+  }
+
+  noteCache.set(repairedNote.id, repairedNote)
+
+  const db = await dbPromise
+  const tx = db.transaction(['notes', 'noteSnapshots'], 'readwrite')
+  await tx.objectStore('notes').put(repairedNote, repairedNote.id)
+  await tx.objectStore('noteSnapshots').put(createSnapshot(repairedNote, 'repair'))
+  await tx.done
+  await pruneSnapshots(repairedNote.id)
+
+  console.info('[DOCUMENT_REPAIR]', normalized.issues)
+  return repairedNote
+}
+
+async function recoverNoteFromSnapshot(noteId: string) {
+  const snapshot = await loadLatestSnapshot(noteId)
+  if (!snapshot) {
+    return null
+  }
+
+  const recoveredNote: Note = {
+    id: noteId,
+    content: normalizeDocument(snapshot.content).document,
+    updatedAt: Date.now(),
+  }
+
+  noteCache.set(noteId, recoveredNote)
+  const db = await dbPromise
+  await db.put('notes', recoveredNote, noteId)
+  console.info(`[CRASH_RECOVERY] Restored ${noteId} from local snapshot`)
+
+  return recoveredNote
+}
+
+async function loadLatestSnapshot(noteId: string) {
+  const db = await dbPromise
+  const snapshots = await db.getAllFromIndex('noteSnapshots', 'by-note', noteId)
+
+  return snapshots.sort((a, b) => b.createdAt - a.createdAt)[0] ?? null
+}
+
+async function pruneSnapshots(noteId: string) {
+  const db = await dbPromise
+  const snapshots = await db.getAllFromIndex('noteSnapshots', 'by-note', noteId)
+  const staleSnapshots = snapshots
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(MAX_SNAPSHOTS_PER_NOTE)
+
+  if (staleSnapshots.length === 0) {
+    return
+  }
+
+  const tx = db.transaction('noteSnapshots', 'readwrite')
+  await Promise.all(staleSnapshots.map((snapshot) => tx.store.delete(snapshot.id)))
+  await tx.done
+}
+
+function createSnapshot(note: Note, reason: NoteSnapshot['reason']): NoteSnapshot {
+  return {
+    id: `snapshot-${note.id}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
+    noteId: note.id,
+    content: note.content,
+    createdAt: Date.now(),
+    reason,
+  }
 }
 
 export function setCurrentNote(id: string) {
