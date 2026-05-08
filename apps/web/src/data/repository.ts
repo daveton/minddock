@@ -1,10 +1,8 @@
+import { noteCache } from './memory'
 import { dbPromise } from './db'
-import {
-  noteCache,
-  noteSession,
-  type Note,
-  type NoteSummary,
-} from './memory'
+import type { Note, NoteSummary } from './memory'
+import { handleStorageError, StorageError } from './errorHandler'
+import { noteSession } from './memory'
 
 const DEFAULT_NOTE_ID = 'note-1'
 const LAST_ACTIVE_NOTE_KEY = 'minddock:last-active-note-id'
@@ -17,19 +15,25 @@ export async function saveCurrentNote(content: Record<string, unknown>) {
 export async function saveNoteById(
   noteId: string,
   content: Record<string, unknown>,
-) {
-  const note: Note = {
-    id: noteId,
-    content,
-    updatedAt: Date.now(),
+): Promise<{ success: boolean; error?: StorageError }> {
+  try {
+    const note: Note = {
+      id: noteId,
+      content,
+      updatedAt: Date.now(),
+    }
+
+    noteCache.set(noteId, note)
+
+    const db = await dbPromise
+    await db.put('notes', note, noteId)
+
+    return { success: true }
+  } catch (error) {
+    const storageError = handleStorageError(error as Error)
+    console.error('Save failed:', storageError)
+    return { success: false, error: storageError }
   }
-
-  noteCache.set(noteId, note)
-
-  const db = await dbPromise
-  await db.put('notes', note, noteId)
-
-  return note
 }
 
 export async function loadNote(id: string) {
@@ -92,18 +96,11 @@ export async function ensureDefaultNote() {
 
 export async function listNotes(): Promise<NoteSummary[]> {
   const db = await dbPromise
-  const notes = await db.getAll('notes')
+  return db.getAll('notes')
+}
 
-  for (const note of notes) {
-    noteCache.set(note.id, note)
-  }
-
-  return notes
-    .map((note) => ({
-      id: note.id,
-      updatedAt: note.updatedAt,
-    }))
-    .sort((a, b) => b.updatedAt - a.updatedAt)
+export function sortNotes(notes: NoteSummary[]): NoteSummary[] {
+  return notes.sort((a: NoteSummary, b: NoteSummary) => b.updatedAt - a.updatedAt)
 }
 
 export async function createNote() {
