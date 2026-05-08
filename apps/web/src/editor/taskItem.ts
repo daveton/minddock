@@ -1,4 +1,5 @@
 import { InputRule, Node, mergeAttributes } from '@tiptap/core'
+import { Plugin } from '@tiptap/pm/state'
 
 export const TaskItem = Node.create({
   name: 'taskItem',
@@ -45,6 +46,44 @@ export const TaskItem = Node.create({
             .deleteRange(range)
             .setNode(this.name, { checked })
             .run()
+        },
+      }),
+    ]
+  },
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        props: {
+          handleClick: (view, _pos, event) => {
+            const target = event.target as HTMLElement | null
+
+            if (!target?.closest('.minddock-task-box')) {
+              return false
+            }
+
+            const taskElement = target.closest('.minddock-task-item')
+
+            if (!taskElement) {
+              return false
+            }
+
+            const taskPos = view.posAtDOM(taskElement, 0)
+            const taskNode = view.state.doc.nodeAt(taskPos)
+
+            if (taskNode?.type.name !== this.name) {
+              return false
+            }
+
+            view.dispatch(
+              view.state.tr.setNodeMarkup(taskPos, undefined, {
+                ...taskNode.attrs,
+                checked: !taskNode.attrs.checked,
+              }),
+            )
+
+            return true
+          },
         },
       }),
     ]

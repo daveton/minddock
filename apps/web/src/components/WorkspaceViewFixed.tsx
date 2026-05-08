@@ -13,6 +13,7 @@ import {
   sortNotes,
 } from '../data/repository';
 import type { Note, NoteSummary } from '../data/memory';
+import { analyzeNoteContent, findRelatedNotes } from '../data/knowledgeAnalysis';
 import { serializeMarkdown } from '../import-export/markdown';
 
 const bearSections = [
@@ -85,9 +86,6 @@ const mobileNotes = [
   },
 ];
 const chips = ['历史', 'AI', '设计', '心理学', '写作', '商业'];
-const relatedNotes = ['八旗制度与组织控制', '明末文官系统为何崩溃', '满清如何重塑意识形态'];
-const timeline = ['1644 清军入关', '1645 剃发令发布', '1646 江南反抗加剧', '1650 政策全面推行'];
-
 const LAYOUT_STORAGE_KEY = 'minddock.workspace.layout.v1';
 const LANGUAGE_STORAGE_KEY = 'minddock.workspace.language.v1';
 const MARKDOWN_SYNTAX_STORAGE_KEY = 'minddock.workspace.markdown-syntax.v1';
@@ -158,6 +156,7 @@ const translations = {
     openContext: 'Open Context Cmd + .',
     openCommandBar: 'Open Command Bar',
     relatedNotes: 'Related Notes',
+    noRelatedNotes: 'Related notes appear as your local notes share tags and keywords.',
     resizeList: 'Resize Note List',
     resizeReset: 'Double-click to restore default width',
     resizeSidebar: 'Resize Sidebar',
@@ -172,6 +171,7 @@ const translations = {
     sidebarAiBody: 'Ask about notes, build timelines, summarize ideas.',
     sidebarAiTitle: 'AI Assistant',
     timeline: 'AI Timeline',
+    noTimeline: 'Years found in this note will appear here.',
     untitled: 'Untitled',
     workspace: 'Workspace',
     copiedMarkdown: 'Markdown copied',
@@ -217,6 +217,7 @@ const translations = {
     openContext: '打开上下文 Cmd + .',
     openCommandBar: '打开命令栏',
     relatedNotes: '相关笔记',
+    noRelatedNotes: '当本地笔记拥有相同标签或关键词时，会自动出现在这里。',
     resizeList: '调整笔记列表宽度',
     resizeReset: '双击恢复默认宽度',
     resizeSidebar: '调整侧边栏宽度',
@@ -231,6 +232,7 @@ const translations = {
     sidebarAiBody: '询问笔记、生成时间线、总结想法。',
     sidebarAiTitle: 'AI 助手',
     timeline: 'AI 时间线',
+    noTimeline: '当前笔记里识别到的年份会显示在这里。',
     untitled: '未命名',
     workspace: '工作区',
     copiedMarkdown: 'Markdown 已复制',
@@ -942,7 +944,7 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
   };
 
   const insertTaskItem = () => {
-    focusEditor()?.insertContent({ type: 'taskItem', attrs: { checked: false }, content: [{ type: 'text', text: '待办事项' }] }).run();
+    focusEditor()?.insertContent({ type: 'taskItem', attrs: { checked: false } }).run();
   };
 
   const toggleBulletList = () => {
@@ -978,6 +980,14 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
   const activeTitle = getNoteTitle(activeNote, t);
   const activeStats = getNoteStats(activeContent ?? activeNote?.content ?? null);
   const activeOutline = getNoteOutline(activeContent ?? activeNote?.content ?? null);
+  const activeAnalysis = useMemo(
+    () => analyzeNoteContent((activeContent as Record<string, unknown> | null) ?? activeNote?.content ?? null),
+    [activeContent, activeNote],
+  );
+  const relatedLocalNotes = useMemo(
+    () => findRelatedNotes(activeNote, notes),
+    [activeNote, notes],
+  );
   const tagTree = useMemo(() => buildTagTree(notes), [notes]);
   const hasActiveTag = useMemo(() => {
     if (!activeTagPath) return true;
@@ -1268,23 +1278,27 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
         <p className="aw-kicker">{t('context')}</p>
         <section>
           <h2>{t('relatedNotes')}</h2>
-          {relatedNotes.map((item) => (
-            <button key={item}>{item}</button>
-          ))}
+          {relatedLocalNotes.length > 0 ? relatedLocalNotes.map((item) => (
+            <button key={item.id} onClick={() => { void handleSwitchNote(item.id); }}>
+              {item.title}
+            </button>
+          )) : <p className="aw-context-empty">{t('noRelatedNotes')}</p>}
         </section>
 
         <section>
           <h2>{t('timeline')}</h2>
-          <ol className="aw-timeline">
-            {timeline.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ol>
+          {activeAnalysis.timeline.length > 0 ? (
+            <ol className="aw-timeline">
+              {activeAnalysis.timeline.map((item) => (
+                <li key={item.id}>{item.text}</li>
+              ))}
+            </ol>
+          ) : <p className="aw-context-empty">{t('noTimeline')}</p>}
         </section>
 
         <section className="aw-context-command">
           <h2>{t('aiSummary')}</h2>
-          <p>{t('contextSummary')}</p>
+          <p>{activeAnalysis.summary || t('contextSummary')}</p>
         </section>
       </aside>
     </div>

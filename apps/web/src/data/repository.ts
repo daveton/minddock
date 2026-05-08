@@ -39,7 +39,7 @@ export async function saveNoteById(
     noteCache.set(noteId, note)
 
     const tx = db.transaction(['notes', 'noteSnapshots'], 'readwrite')
-    await tx.objectStore('notes').put(note, noteId)
+    await tx.objectStore('notes').put(note)
     await tx.objectStore('noteSnapshots').put(createSnapshot(note, normalized.repaired ? 'repair' : 'save'))
     await tx.done
     await pruneSnapshots(noteId)
@@ -123,7 +123,7 @@ export async function ensureDefaultNote() {
   noteCache.set(startupNoteId, emptyNote)
   const db = await dbPromise
   const tx = db.transaction(['notes', 'noteSnapshots'], 'readwrite')
-  await tx.objectStore('notes').put(emptyNote, startupNoteId)
+  await tx.objectStore('notes').put(emptyNote)
   await tx.objectStore('noteSnapshots').put(createSnapshot(emptyNote, 'recovery'))
   await tx.done
 
@@ -173,7 +173,7 @@ export async function createNote() {
   noteCache.set(noteId, note)
   const db = await dbPromise
   const tx = db.transaction(['notes', 'noteSnapshots'], 'readwrite')
-  await tx.objectStore('notes').put(note, noteId)
+  await tx.objectStore('notes').put(note)
   await tx.objectStore('noteSnapshots').put(createSnapshot(note, 'recovery'))
   await tx.done
 
@@ -197,7 +197,7 @@ async function repairLoadedNote(note: Note) {
 
   const db = await dbPromise
   const tx = db.transaction(['notes', 'noteSnapshots'], 'readwrite')
-  await tx.objectStore('notes').put(repairedNote, repairedNote.id)
+  await tx.objectStore('notes').put(repairedNote)
   await tx.objectStore('noteSnapshots').put(createSnapshot(repairedNote, 'repair'))
   await tx.done
   await pruneSnapshots(repairedNote.id)
@@ -221,7 +221,7 @@ async function recoverNoteFromSnapshot(noteId: string) {
 
   noteCache.set(noteId, recoveredNote)
   const db = await dbPromise
-  await db.put('notes', recoveredNote, noteId)
+  await db.put('notes', recoveredNote)
   console.info(`[CRASH_RECOVERY] Restored ${noteId} from local snapshot`)
 
   return recoveredNote
