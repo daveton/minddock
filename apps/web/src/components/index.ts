@@ -5,4 +5,6 @@ export { EditorContainer } from './EditorContainer';
 export { ContextPanel } from './ContextPanel';
 export { ConflictModal } from './ConflictModal';
 export { WorkspaceViewNew } from './WorkspaceViewNew';
+export { InlineAI, useInlineAI } from './InlineAI';
+export { AICommandBar, useAICommandBar } from './AICommandBar';
 export { Button, Card, Typography } from './ui';
