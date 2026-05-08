@@ -508,9 +508,33 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const refreshNotes = useCallback(async (nextActiveId?: string) => {
+  const refreshNotes = useCallback(async (nextActiveId?: string, options: { promoteId?: string } = {}) => {
     const allNotes = sortNotes(await listNotes()) as Note[];
-    setNotes(allNotes);
+    setNotes((currentNotes) => {
+      if (currentNotes.length === 0) {
+        return allNotes;
+      }
+
+      const freshNotesById = new Map(allNotes.map((note) => [note.id, note]));
+      const orderedNotes = currentNotes
+        .map((note) => freshNotesById.get(note.id))
+        .filter((note): note is Note => Boolean(note));
+      const knownIds = new Set(orderedNotes.map((note) => note.id));
+      const newNotes = allNotes.filter((note) => !knownIds.has(note.id));
+      const refreshedNotes = [...newNotes, ...orderedNotes];
+
+      if (options.promoteId) {
+        const promotedNote = refreshedNotes.find((note) => note.id === options.promoteId);
+        if (promotedNote) {
+          return [
+            promotedNote,
+            ...refreshedNotes.filter((note) => note.id !== options.promoteId),
+          ];
+        }
+      }
+
+      return refreshedNotes;
+    });
 
     if (nextActiveId) {
       const nextActive = allNotes.find((note) => note.id === nextActiveId) ?? null;
@@ -551,7 +575,7 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
       onSaving: () => setSaveState({ labelKey: 'savingLocally', tone: 'live', detailKey: null }),
       onSaved: async () => {
         setSaveState({ labelKey: 'saved', tone: 'idle', detailKey: null });
-        await refreshNotes(activeNoteIdRef.current ?? undefined);
+        await refreshNotes(activeNoteIdRef.current ?? undefined, { promoteId: activeNoteIdRef.current ?? undefined });
       },
       onError: () =>
         setSaveState({
