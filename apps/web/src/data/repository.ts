@@ -49,11 +49,15 @@ export async function loadNote(id: string) {
 }
 
 export async function ensureDefaultNote() {
+  const recoveryStart = performance.now()
+  
   const startupNoteId = getStartupNoteId()
   setCurrentNote(startupNoteId)
 
   const existing = await loadNote(startupNoteId)
   if (existing) {
+    const recoveryTime = performance.now() - recoveryStart
+    console.log(`[CRASH_RECOVERY] Recovered existing note in ${recoveryTime.toFixed(2)}ms`)
     return existing
   }
 
@@ -80,6 +84,9 @@ export async function ensureDefaultNote() {
   const db = await dbPromise
   await db.put('notes', emptyNote, startupNoteId)
 
+  const recoveryTime = performance.now() - recoveryStart
+  console.log(`[CRASH_RECOVERY] Created new note in ${recoveryTime.toFixed(2)}ms`)
+  
   return emptyNote
 }
 
