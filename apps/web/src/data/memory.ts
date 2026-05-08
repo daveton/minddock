@@ -1,6 +1,7 @@
 export type Note = {
   id: string
   content: Record<string, unknown>
+  createdAt?: number
   updatedAt: number
   localStatus?: 'unsaved'
 }

@@ -27,15 +27,17 @@ export async function saveNoteById(
 ): Promise<{ success: boolean; error?: StorageError }> {
   try {
     const normalized = normalizeDocument(content)
+    const db = await dbPromise
+    const existingNote = noteCache.get(noteId) ?? (await db.get('notes', noteId))
     const note: Note = {
       id: noteId,
       content: normalized.document,
+      createdAt: existingNote?.createdAt ?? existingNote?.updatedAt ?? Date.now(),
       updatedAt: Date.now(),
     }
 
     noteCache.set(noteId, note)
 
-    const db = await dbPromise
     const tx = db.transaction(['notes', 'noteSnapshots'], 'readwrite')
     await tx.objectStore('notes').put(note, noteId)
     await tx.objectStore('noteSnapshots').put(createSnapshot(note, normalized.repaired ? 'repair' : 'save'))
@@ -114,6 +116,7 @@ export async function ensureDefaultNote() {
         },
       ],
     }).document,
+    createdAt: Date.now(),
     updatedAt: Date.now(),
   }
 
@@ -163,6 +166,7 @@ export async function createNote() {
         },
       ],
     }).document,
+    createdAt: Date.now(),
     updatedAt: Date.now(),
   }
 
@@ -185,6 +189,7 @@ async function repairLoadedNote(note: Note) {
   const repairedNote: Note = {
     ...note,
     content: normalized.document,
+    createdAt: note.createdAt ?? note.updatedAt,
     updatedAt: Date.now(),
   }
 
@@ -210,6 +215,7 @@ async function recoverNoteFromSnapshot(noteId: string) {
   const recoveredNote: Note = {
     id: noteId,
     content: normalizeDocument(snapshot.content).document,
+    createdAt: snapshot.createdAt,
     updatedAt: Date.now(),
   }
 

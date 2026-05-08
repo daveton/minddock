@@ -250,7 +250,7 @@ type I18nKey = keyof typeof translations.en;
 const defaultLayout: WorkspaceLayout = {
   sidebarWidth: SIDEBAR_DEFAULT,
   listWidth: LIST_DEFAULT,
-  contextOpen: false,
+  contextOpen: true,
   focusMode: false,
   theme: 'light',
 };
@@ -445,13 +445,13 @@ function countBlocks(value: unknown, type: string): number {
   return own + children;
 }
 
-function getNoteStats(note: Note | null) {
-  const text = note ? collectText(note.content).trim() : '';
+function getNoteStats(content: unknown) {
+  const text = collectText(content).trim();
   const compact = text.replace(/\s+/g, '');
   const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
   const chineseChars = compact.match(/[\u4e00-\u9fff]/g)?.length ?? 0;
   const wordCount = Math.max(words, chineseChars);
-  const paragraphs = note ? Math.max(1, countBlocks(note.content, 'paragraph')) : 0;
+  const paragraphs = content ? countBlocks(content, 'paragraph') : 0;
 
   return {
     words: wordCount,
@@ -461,11 +461,11 @@ function getNoteStats(note: Note | null) {
   };
 }
 
-function getNoteOutline(note: Note | null) {
-  if (!note) return [];
+function getNoteOutline(content: unknown) {
+  if (!content) return [];
 
   const outline: Array<{ id: string; level: number; text: string }> = [];
-  collectHeadings(note.content, outline);
+  collectHeadings(content, outline);
   return outline;
 }
 
@@ -671,6 +671,7 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
   const applyingRemoteContentRef = useRef(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [activeNote, setActiveNote] = useState<Note | null>(null);
+  const [activeContent, setActiveContent] = useState<Record<string, unknown> | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('stats');
   const [saveState, setSaveState] = useState<SaveState>({
@@ -743,6 +744,7 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
   const setEditorContent = useCallback((editor: Editor, note: Note) => {
     applyingRemoteContentRef.current = true;
     editor.commands.setContent(note.content);
+    setActiveContent(editor.getJSON());
     queueMicrotask(() => {
       applyingRemoteContentRef.current = false;
     });
@@ -782,6 +784,10 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
           detailKey: 'saveFailedDetail',
         }),
     });
+    const syncActiveContent = () => {
+      setActiveContent(editor.getJSON());
+    };
+    editor.on('update', syncActiveContent);
 
     const init = async () => {
       const note = await ensureDefaultNote();
@@ -800,6 +806,7 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
     return () => {
       disposed = true;
       unbind();
+      editor.off('update', syncActiveContent);
       editor.destroy();
       editorRef.current = null;
     };
@@ -969,8 +976,8 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
   };
 
   const activeTitle = getNoteTitle(activeNote, t);
-  const activeStats = getNoteStats(activeNote);
-  const activeOutline = getNoteOutline(activeNote);
+  const activeStats = getNoteStats(activeContent ?? activeNote?.content ?? null);
+  const activeOutline = getNoteOutline(activeContent ?? activeNote?.content ?? null);
   const tagTree = useMemo(() => buildTagTree(notes), [notes]);
   const hasActiveTag = useMemo(() => {
     if (!activeTagPath) return true;
@@ -1111,6 +1118,14 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
               {language === 'en' ? '中' : 'En'}
             </button>
             <button
+              aria-label={t('openContext')}
+              aria-pressed={layout.contextOpen}
+              className={layout.contextOpen ? 'is-active' : ''}
+              onClick={() => setLayout((current) => ({ ...current, contextOpen: !current.contextOpen, focusMode: false }))}
+            >
+              ◫
+            </button>
+            <button
               aria-label={t('focusMode')}
               className={layout.focusMode ? 'is-active' : ''}
               onClick={() => setLayout((current) => ({ ...current, focusMode: !current.focusMode }))}
@@ -1173,7 +1188,7 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
                     <span>编辑日期</span>
                   </div>
                   <div>
-                    <strong>{activeNote ? new Date(activeNote.updatedAt).toLocaleString('zh-CN') : '-'}</strong>
+                    <strong>{activeNote ? new Date(activeNote.createdAt ?? activeNote.updatedAt).toLocaleString('zh-CN') : '-'}</strong>
                     <span>创建日期</span>
                   </div>
                 </div>
