@@ -35,7 +35,8 @@ MindDock 现在是一个轻量 Web 原型，并且只保留一个当前生效的
 
 ## 下一步
 
-1. 决定当前精修后的工作台是继续保持静态展示，还是接回本地优先编辑器和数据层。
-2. 如果接回真实功能，需要通过 `repository.ts` 接入数据，不把 React 状态更新放进输入 transaction 路径。
-3. 补充保存、恢复、多标签页行为的聚焦测试。
-4. 在本地编辑闭环稳定后，再把占位 AI 操作替换为真实命令行为。
+1. 把当前精修后的工作台接回 Hybrid Markdown 编辑器，而不是继续扩展静态 UI。
+2. 基于 TipTap / ProseMirror 实现基础 Markdown input rules 和块级渲染。
+3. 通过 `repository.ts` 接入本地数据，不把 React 状态更新放进输入 transaction 路径。
+4. 补充中文 IME、保存、恢复、多标签页行为的聚焦测试。
+5. 在本地编辑闭环稳定后，再把占位 AI 操作替换为基于 Markdown / AST 的真实命令行为。
