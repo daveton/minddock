@@ -1,3 +1,5 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+
 const notes = [
   {
     title: '剃发易服背后的心理统治',
@@ -24,12 +26,114 @@ const notes = [
 
 const spaces = ['Today', 'Research', 'Writing', 'History', 'AI', 'Design', 'Psychology'];
 const chips = ['历史', 'AI', '设计', '心理学', '写作', '商业'];
+const relatedNotes = ['八旗制度与组织控制', '明末文官系统为何崩溃', '满清如何重塑意识形态'];
+const timeline = ['1644 清军入关', '1645 剃发令发布', '1646 江南反抗加剧', '1650 政策全面推行'];
 
-function IconButton({ label, children, dark = false }: { label: string; children: string; dark?: boolean }) {
+const LAYOUT_STORAGE_KEY = 'minddock.workspace.layout.v1';
+const SIDEBAR_DEFAULT = 256;
+const LIST_DEFAULT = 320;
+const SIDEBAR_MIN = 220;
+const SIDEBAR_MAX = 320;
+const LIST_MIN = 260;
+const LIST_MAX = 420;
+
+type WorkspaceLayout = {
+  sidebarWidth: number;
+  listWidth: number;
+  contextOpen: boolean;
+  focusMode: boolean;
+  theme: 'light';
+};
+
+const defaultLayout: WorkspaceLayout = {
+  sidebarWidth: SIDEBAR_DEFAULT,
+  listWidth: LIST_DEFAULT,
+  contextOpen: false,
+  focusMode: false,
+  theme: 'light',
+};
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function loadLayout(): WorkspaceLayout {
+  if (typeof window === 'undefined') return defaultLayout;
+
+  try {
+    const saved = window.localStorage.getItem(LAYOUT_STORAGE_KEY);
+    if (!saved) return defaultLayout;
+    const parsed = JSON.parse(saved) as Partial<WorkspaceLayout>;
+
+    return {
+      sidebarWidth: clamp(parsed.sidebarWidth ?? SIDEBAR_DEFAULT, SIDEBAR_MIN, SIDEBAR_MAX),
+      listWidth: clamp(parsed.listWidth ?? LIST_DEFAULT, LIST_MIN, LIST_MAX),
+      contextOpen: parsed.contextOpen ?? defaultLayout.contextOpen,
+      focusMode: parsed.focusMode ?? defaultLayout.focusMode,
+      theme: 'light',
+    };
+  } catch {
+    return defaultLayout;
+  }
+}
+
+function IconButton({
+  label,
+  children,
+  dark = false,
+  active = false,
+  onClick,
+}: {
+  label: string;
+  children: string;
+  dark?: boolean;
+  active?: boolean;
+  onClick?: () => void;
+}) {
   return (
-    <button className={`aw-icon-button ${dark ? 'aw-icon-button--dark' : ''}`} aria-label={label} title={label}>
+    <button
+      className={`aw-icon-button ${dark ? 'aw-icon-button--dark' : ''} ${active ? 'is-active' : ''}`}
+      aria-label={label}
+      aria-pressed={active}
+      onClick={onClick}
+      title={label}
+    >
       {children}
     </button>
+  );
+}
+
+function ResizeHandle({ label, onDrag, onReset }: { label: string; onDrag: (delta: number) => void; onReset: () => void }) {
+  const handlePointerDown = useCallback(
+    (event: React.PointerEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      const startX = event.clientX;
+
+      const handlePointerMove = (moveEvent: PointerEvent) => {
+        onDrag(moveEvent.clientX - startX);
+      };
+
+      const handlePointerUp = () => {
+        document.body.classList.remove('aw-is-resizing');
+        window.removeEventListener('pointermove', handlePointerMove);
+        window.removeEventListener('pointerup', handlePointerUp);
+      };
+
+      document.body.classList.add('aw-is-resizing');
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
+    },
+    [onDrag],
+  );
+
+  return (
+    <button
+      aria-label={label}
+      className="aw-resize-handle"
+      onDoubleClick={onReset}
+      onPointerDown={handlePointerDown}
+      title={`${label}，双击恢复默认宽度`}
+    />
   );
 }
 
@@ -105,8 +209,57 @@ function MobileWorkspace() {
 }
 
 function DesktopWorkspace() {
+  const [layout, setLayout] = useState<WorkspaceLayout>(loadLayout);
+
+  useEffect(() => {
+    window.localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(layout));
+  }, [layout]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!event.metaKey) return;
+
+      if (event.key === '.') {
+        event.preventDefault();
+        setLayout((current) => ({ ...current, contextOpen: !current.contextOpen, focusMode: false }));
+      }
+
+      if (event.key === '\\') {
+        event.preventDefault();
+        setLayout((current) => ({ ...current, focusMode: !current.focusMode }));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const resizeSidebar = useCallback((delta: number) => {
+    setLayout((current) => ({
+      ...current,
+      sidebarWidth: clamp(current.sidebarWidth + delta, SIDEBAR_MIN, SIDEBAR_MAX),
+    }));
+  }, []);
+
+  const resizeList = useCallback((delta: number) => {
+    setLayout((current) => ({
+      ...current,
+      listWidth: clamp(current.listWidth + delta, LIST_MIN, LIST_MAX),
+    }));
+  }, []);
+
+  const workspaceStyle = useMemo(
+    () =>
+      ({
+        '--sidebar-width': layout.focusMode ? '0px' : `${layout.sidebarWidth}px`,
+        '--list-width': layout.focusMode ? '0px' : `${layout.listWidth}px`,
+        '--context-width': layout.contextOpen && !layout.focusMode ? '320px' : '0px',
+      }) as React.CSSProperties,
+    [layout],
+  );
+
   return (
-    <div className="aw-desktop">
+    <div className={`aw-desktop ${layout.contextOpen ? 'has-context' : ''} ${layout.focusMode ? 'is-focus-mode' : ''}`} style={workspaceStyle}>
       <aside className="aw-sidebar">
         <div className="aw-sidebar__brand">
           <div className="aw-logo">A</div>
@@ -128,6 +281,11 @@ function DesktopWorkspace() {
           <button>Open Command Bar</button>
         </section>
       </aside>
+      <ResizeHandle
+        label="调整 Sidebar 宽度"
+        onDrag={resizeSidebar}
+        onReset={() => setLayout((current) => ({ ...current, sidebarWidth: SIDEBAR_DEFAULT }))}
+      />
 
       <section className="aw-note-list">
         <header>
@@ -147,8 +305,29 @@ function DesktopWorkspace() {
           ))}
         </div>
       </section>
+      <ResizeHandle
+        label="调整 Note List 宽度"
+        onDrag={resizeList}
+        onReset={() => setLayout((current) => ({ ...current, listWidth: LIST_DEFAULT }))}
+      />
 
       <main className="aw-editor-shell">
+        <div className="aw-editor-toolbar">
+          <IconButton
+            active={layout.focusMode}
+            label="专注模式 Cmd + \\"
+            onClick={() => setLayout((current) => ({ ...current, focusMode: !current.focusMode }))}
+          >
+            ⛶
+          </IconButton>
+          <IconButton
+            active={layout.contextOpen}
+            label="打开 Context Cmd + ."
+            onClick={() => setLayout((current) => ({ ...current, contextOpen: !current.contextOpen, focusMode: false }))}
+          >
+            ◫
+          </IconButton>
+        </div>
         <article className="aw-editor">
           <div className="aw-breadcrumb">History / Qing Dynasty</div>
           <h1>剃发易服背后的心理统治：满洲如何重塑汉人的身份认同</h1>
@@ -198,7 +377,7 @@ function DesktopWorkspace() {
         <p className="aw-kicker">Context</p>
         <section>
           <h2>Related Notes</h2>
-          {['八旗制度与组织控制', '明末文官系统为何崩溃', '满清如何重塑意识形态'].map((item) => (
+          {relatedNotes.map((item) => (
             <button key={item}>{item}</button>
           ))}
         </section>
@@ -206,16 +385,15 @@ function DesktopWorkspace() {
         <section>
           <h2>AI Timeline</h2>
           <ol className="aw-timeline">
-            {['1644 清军入关', '1645 剃发令发布', '1646 江南反抗加剧', '1650 政策全面推行'].map((item) => (
+            {timeline.map((item) => (
               <li key={item}>{item}</li>
             ))}
           </ol>
         </section>
 
         <section className="aw-context-command">
-          <h2>Ask AI About This Note</h2>
-          <p>Generate summary, identify key arguments, create timeline or compare dynasties.</p>
-          <button>Ask anything...</button>
+          <h2>AI Summary</h2>
+          <p>身份符号、强制默认与集体记忆重写构成了这篇笔记的主要论证路径。</p>
         </section>
       </aside>
     </div>
