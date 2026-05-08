@@ -1,5 +1,5 @@
 import ReactDOM from 'react-dom/client'
-import { WorkspaceViewFinal } from './components/WorkspaceViewFinal'
+import { WorkspaceViewFinal } from './components/WorkspaceViewFixed'
 import './styles.css'
 import './styles/design-tokens.css'
 
