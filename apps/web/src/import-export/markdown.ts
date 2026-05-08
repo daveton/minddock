@@ -31,6 +31,8 @@ function serializeBlock(node: ProseMirrorNode, context: { listDepth?: number; or
       return serializeList(node, '1.', context.orderedIndex)
     case 'listItem':
       return serializeChildren(node)
+    case 'taskItem':
+      return `-[${node.attrs?.checked ? 'x' : ' '}] ${serializeInlineChildren(node)}`
     case 'codeBlock':
       return `\`\`\`\n${serializeTextChildren(node)}\n\`\`\``
     case 'horizontalRule':

@@ -857,8 +857,48 @@ button {
   .minddock-editor ul,
   .minddock-editor ol,
   .minddock-editor blockquote,
-  .minddock-editor pre {
+  .minddock-editor pre,
+  .minddock-task-item {
     margin: 0 0 22px;
+  }
+
+  .minddock-task-item {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    align-items: start;
+    gap: 12px;
+    color: #4b4b4b;
+  }
+
+  .minddock-task-box {
+    position: relative;
+    width: 28px;
+    height: 28px;
+    margin-top: 4px;
+    border: 3px solid #909090;
+    border-radius: 7px;
+    background: #ffffff;
+  }
+
+  .minddock-task-item[data-checked='true'] .minddock-task-box {
+    border-color: #c8c8c8;
+    background: #ffffff;
+  }
+
+  .minddock-task-item[data-checked='true'] .minddock-task-box::after {
+    position: absolute;
+    top: 3px;
+    left: 7px;
+    width: 8px;
+    height: 15px;
+    border-right: 3px solid #9a9a9a;
+    border-bottom: 3px solid #9a9a9a;
+    content: '';
+    transform: rotate(42deg);
+  }
+
+  .minddock-task-content {
+    min-width: 0;
   }
 
   .minddock-editor h1,
@@ -1062,7 +1102,7 @@ button {
     user-select: none;
   }
 
-  .aw-floating-toolbar {
+  .aw-format-dock {
     position: sticky;
     bottom: 22px;
     left: 50%;
@@ -1071,8 +1111,40 @@ button {
     width: max-content;
     max-width: min(680px, 100%);
     align-items: center;
-    gap: 2px;
+    gap: 8px;
     margin: 42px auto 0;
+  }
+
+  .aw-format-dock.is-closed {
+    margin-top: 22px;
+  }
+
+  .aw-format-dock__toggle {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    border-radius: 8px;
+    background: rgba(218, 218, 218, 0.92);
+    color: #555555;
+    cursor: pointer;
+    font-size: 20px;
+    font-weight: 760;
+    line-height: 1;
+    box-shadow: 0 8px 26px rgba(0, 0, 0, 0.14);
+    backdrop-filter: blur(18px);
+  }
+
+  .aw-format-dock__toggle:hover,
+  .aw-format-dock__toggle:focus-visible {
+    background: rgba(203, 203, 203, 0.96);
+    color: #3f3f3f;
+  }
+
+  .aw-floating-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
     border-radius: 8px;
     background: rgba(218, 218, 218, 0.92);
     color: #545454;
@@ -1081,15 +1153,29 @@ button {
     backdrop-filter: blur(18px);
   }
 
-  .aw-floating-toolbar span,
-  .aw-floating-toolbar strong,
-  .aw-floating-toolbar em {
+  .aw-floating-toolbar button {
     display: grid;
     min-width: 34px;
     height: 28px;
     place-items: center;
     border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
     font-size: 18px;
+    font-weight: 720;
+    line-height: 1;
+  }
+
+  .aw-floating-toolbar button:hover,
+  .aw-floating-toolbar button:focus-visible {
+    background: rgba(255, 255, 255, 0.52);
+    color: #2f2f2f;
+  }
+
+  .aw-floating-toolbar strong,
+  .aw-floating-toolbar em {
+    font-size: inherit;
     font-style: normal;
     line-height: 1;
   }

@@ -663,6 +663,7 @@ function MobileWorkspace({ language, setLanguage, t }: { language: Language; set
 function DesktopWorkspace({ language, setLanguage, t }: { language: Language; setLanguage: Dispatch<SetStateAction<Language>>; t: (key: I18nKey) => string }) {
   const [layout, setLayout] = useState<WorkspaceLayout>(loadLayout);
   const [showMarkdownSyntax, setShowMarkdownSyntax] = useState(loadMarkdownSyntaxPreference);
+  const [formatToolbarOpen, setFormatToolbarOpen] = useState(true);
   const [activeTagPath, setActiveTagPath] = useState<string | null>('study/历史/清朝');
   const editorHostRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<Editor | null>(null);
@@ -927,6 +928,46 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
     setSaveState({ labelKey: 'copiedMarkdown', tone: 'idle', detailKey: null });
   };
 
+  const focusEditor = () => editorRef.current?.chain().focus();
+
+  const toggleHeading = () => {
+    focusEditor()?.toggleHeading({ level: 2 }).run();
+  };
+
+  const insertTaskItem = () => {
+    focusEditor()?.insertContent({ type: 'taskItem', attrs: { checked: false }, content: [{ type: 'text', text: '待办事项' }] }).run();
+  };
+
+  const toggleBulletList = () => {
+    focusEditor()?.toggleBulletList().run();
+  };
+
+  const toggleBold = () => {
+    focusEditor()?.toggleBold().run();
+  };
+
+  const toggleItalic = () => {
+    focusEditor()?.toggleItalic().run();
+  };
+
+  const insertTag = () => {
+    focusEditor()?.insertContent('#标签 ').run();
+  };
+
+  const insertMention = () => {
+    focusEditor()?.insertContent('@关联笔记 ').run();
+  };
+
+  const insertGrid = () => {
+    focusEditor()
+      ?.insertContent([
+        { type: 'paragraph', content: [{ type: 'text', text: '| 项目 | 内容 |' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: '| --- | --- |' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: '|  |  |' }] },
+      ])
+      .run();
+  };
+
   const activeTitle = getNoteTitle(activeNote, t);
   const activeStats = getNoteStats(activeNote);
   const activeOutline = getNoteOutline(activeNote);
@@ -1181,16 +1222,29 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
           ) : null}
 
           <div ref={editorHostRef} className="aw-editor-host" />
-          <div className="aw-floating-toolbar" aria-hidden="true">
-            <span>H⌄</span>
-            <span>☑</span>
-            <span>≡⌄</span>
-            <strong>B</strong>
-            <em>I</em>
-            <span>⌫</span>
-            <span>@</span>
-            <span>▦</span>
-            <span>⋮</span>
+          <div className={`aw-format-dock ${formatToolbarOpen ? 'is-open' : 'is-closed'}`}>
+            <button
+              type="button"
+              className="aw-format-dock__toggle"
+              aria-label={formatToolbarOpen ? '隐藏功能区' : '显示功能区'}
+              aria-expanded={formatToolbarOpen}
+              onClick={() => setFormatToolbarOpen((current) => !current)}
+            >
+              {formatToolbarOpen ? '⌄' : '⌃'}
+            </button>
+            {formatToolbarOpen ? (
+              <div className="aw-floating-toolbar" role="toolbar" aria-label="编辑功能区">
+                <button type="button" aria-label="标题" onClick={toggleHeading}>H⌄</button>
+                <button type="button" aria-label="待办事项" onClick={insertTaskItem}>☑</button>
+                <button type="button" aria-label="项目列表" onClick={toggleBulletList}>≡⌄</button>
+                <button type="button" aria-label="加粗" onClick={toggleBold}><strong>B</strong></button>
+                <button type="button" aria-label="斜体" onClick={toggleItalic}><em>I</em></button>
+                <button type="button" aria-label="插入标签" onClick={insertTag}>⌫</button>
+                <button type="button" aria-label="插入关联" onClick={insertMention}>@</button>
+                <button type="button" aria-label="插入表格文本" onClick={insertGrid}>▦</button>
+                <button type="button" aria-label="更多">⋮</button>
+              </div>
+            ) : null}
           </div>
         </article>
       </main>

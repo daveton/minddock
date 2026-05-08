@@ -20,6 +20,7 @@ const BLOCK_TYPES = new Set([
   'bulletList',
   'orderedList',
   'listItem',
+  'taskItem',
   'horizontalRule',
 ])
 
