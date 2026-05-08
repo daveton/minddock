@@ -57,7 +57,7 @@ class TabSyncManager {
     }
   };
 
-  private isOwnMessage(message: TabMessage): boolean {
+  private isOwnMessage(_message: TabMessage): boolean {
     // Simple check to avoid echo
     return false; // In real implementation, you'd track sent messages
   }

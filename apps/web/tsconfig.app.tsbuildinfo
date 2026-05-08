@@ -1,1 +1,0 @@
-{"root":["./src/main.tsx","./src/vite-env.d.ts","./src/data/db.ts","./src/data/memory.ts","./src/data/repository.ts","./src/editor/events.ts","./src/editor/setup.ts","./src/ui/editorview.tsx","./src/utils/debounce.ts"],"version":"5.9.3"}
