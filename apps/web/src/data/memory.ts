@@ -2,6 +2,7 @@ export type Note = {
   id: string
   content: Record<string, unknown>
   updatedAt: number
+  localStatus?: 'unsaved'
 }
 
 export type NoteSnapshot = {
@@ -12,7 +13,9 @@ export type NoteSnapshot = {
   reason: 'save' | 'recovery' | 'repair'
 }
 
-export type NoteSummary = Pick<Note, 'id' | 'updatedAt'>
+export type NoteSummary = Pick<Note, 'id' | 'updatedAt' | 'localStatus'> & {
+  content?: Note['content']
+}
 
 export const noteCache = new Map<string, Note>()
 

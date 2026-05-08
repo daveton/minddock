@@ -27,7 +27,10 @@ export function bindEditorEvents(editor: Editor, options: BindOptions = {}) {
     try {
       options.onSaving?.()
       const content = editor.getJSON()
-      await saveCurrentNote(content)
+      const result = await saveCurrentNote(content)
+      if (!result.success) {
+        throw new Error(result.error?.message ?? 'Save failed')
+      }
       options.onSaved?.()
     } catch {
       options.onError?.()

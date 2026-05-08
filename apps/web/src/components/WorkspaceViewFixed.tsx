@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import type { Editor } from '@tiptap/core';
 import { bindEditorEvents } from '../editor/events';
 import { createEditor } from '../editor/setup';
@@ -13,7 +14,58 @@ import {
 } from '../data/repository';
 import type { Note, NoteSummary } from '../data/memory';
 
-const spaces = ['Today', 'Research', 'Writing', 'History', 'AI', 'Design', 'Psychology'];
+const bearSections = [
+  {
+    id: 'notes',
+    label: '笔记',
+    icon: '▾',
+    items: [
+      { label: '无标签', icon: '▤' },
+      { label: '待办事项', icon: '☑' },
+      { label: '今天', icon: '□' },
+      { label: '已加密', icon: '▢' },
+      { label: '废纸篓', icon: '⌫' },
+    ],
+  },
+  {
+    id: 'personal',
+    label: 'personal',
+    icon: '▾',
+    items: [
+      { label: 'coder', icon: '</>' },
+      { label: 'design', icon: '◢' },
+    ],
+  },
+  {
+    id: 'study',
+    label: 'study',
+    icon: '▾',
+    items: [
+      { label: '高项', icon: '▦' },
+      { label: '工作流', icon: '▤' },
+      { label: '历史', icon: '▾' },
+      { label: '历史故事', icon: '◉', child: true },
+      { label: '清朝', icon: 't', child: true, active: true },
+      { label: '宋朝', icon: '▰', child: true },
+      { label: '唐朝', icon: '▸', child: true },
+      { label: '影视', icon: '◒' },
+      { label: 'aigc', icon: '◇' },
+      { label: 'music', icon: '♪' },
+      { label: 'shorts', icon: '▸' },
+    ],
+  },
+  {
+    id: 'todo',
+    label: 'todo',
+    icon: '▾',
+    items: [
+      { label: '读书', icon: '☍' },
+      { label: '经济学', icon: '$' },
+      { label: '骷髅人', icon: '◌' },
+      { label: '心理学', icon: '◎' },
+    ],
+  },
+];
 const mobileNotes = [
   {
     title: '剃发易服背后的心理统治',
@@ -36,6 +88,7 @@ const relatedNotes = ['八旗制度与组织控制', '明末文官系统为何�
 const timeline = ['1644 清军入关', '1645 剃发令发布', '1646 江南反抗加剧', '1650 政策全面推行'];
 
 const LAYOUT_STORAGE_KEY = 'minddock.workspace.layout.v1';
+const LANGUAGE_STORAGE_KEY = 'minddock.workspace.language.v1';
 const SIDEBAR_DEFAULT = 256;
 const LIST_DEFAULT = 320;
 const SIDEBAR_MIN = 220;
@@ -54,10 +107,117 @@ type WorkspaceLayout = {
 type SaveTone = 'idle' | 'live' | 'error';
 
 type SaveState = {
-  label: string;
+  labelKey: I18nKey;
   tone: SaveTone;
-  detail: string | null;
+  detailKey: I18nKey | null;
 };
+
+type Language = 'en' | 'zh';
+
+const translations = {
+  en: {
+    aiCommand: 'AI Command',
+    aiKnowledge: 'AI Knowledge',
+    aiKnowledgeOS: 'AI Knowledge OS',
+    aiSummary: 'AI Summary',
+    askAiAnything: 'Ask AI anything about your notes',
+    brand: 'Atlas',
+    category: 'Category',
+    commandPlaceholder: 'Search notes, summarize, connect ideas...',
+    context: 'Context',
+    contextSummary: 'Identity symbols, forced defaults, and rewritten collective memory form the main argument path of this note.',
+    emptyLocalNote: 'Empty local note',
+    focusMode: 'Focus mode Cmd + \\',
+    history: 'History',
+    language: 'Switch language',
+    loadFailed: 'Load failed',
+    loadFailedDetail: 'The selected note could not be loaded from local storage.',
+    loading: 'Loading',
+    localFirst: 'Local-first',
+    localNote: 'Local note',
+    localNotes: 'local notes',
+    mobileHeroBody: 'A mobile knowledge space for reading, research, writing, and AI collaboration.',
+    mobileHeroTitle: 'AI-powered knowledge workspace',
+    mobileTabsAi: 'AI',
+    mobileTabsHome: 'Home',
+    mobileTabsMe: 'Me',
+    mobileTabsNotes: 'Notes',
+    mobileTabsSearch: 'Search',
+    newNote: 'New note',
+    noteOpened: 'Open note',
+    openContext: 'Open Context Cmd + .',
+    openCommandBar: 'Open Command Bar',
+    relatedNotes: 'Related Notes',
+    resizeList: 'Resize Note List',
+    resizeReset: 'Double-click to restore default width',
+    resizeSidebar: 'Resize Sidebar',
+    saveFailed: 'Save failed',
+    saveFailedCreateDetail: 'The current note could not be written locally before creating a new note.',
+    saveFailedDetail: 'Latest changes are cached in this browser. This note is marked unsaved in the list.',
+    saveFailedSwitchDetail: 'Latest changes were cached in this browser, so switching can continue.',
+    saved: 'Saved',
+    savingBeforeNewNote: 'Saving before new note',
+    savingBeforeSwitch: 'Saving before switch',
+    savingLocally: 'Saving locally',
+    sidebarAiBody: 'Ask about notes, build timelines, summarize ideas.',
+    sidebarAiTitle: 'AI Assistant',
+    timeline: 'AI Timeline',
+    untitled: 'Untitled',
+    workspace: 'Workspace',
+  },
+  zh: {
+    aiCommand: 'AI 命令',
+    aiKnowledge: 'AI 知识',
+    aiKnowledgeOS: 'AI 知识系统',
+    aiSummary: 'AI 摘要',
+    askAiAnything: '询问 AI 关于笔记的任何问题',
+    brand: 'Atlas',
+    category: '分类',
+    commandPlaceholder: '搜索笔记、生成总结、建立关联...',
+    context: '上下文',
+    contextSummary: '身份符号、强制默认与集体记忆重写构成了这篇笔记的主要论证路径。',
+    emptyLocalNote: '空白本地笔记',
+    focusMode: '专注模式 Cmd + \\',
+    history: '历史',
+    language: '切换语言',
+    loadFailed: '加载失败',
+    loadFailedDetail: '无法从本地存储加载所选笔记。',
+    loading: '加载中',
+    localFirst: '本地优先',
+    localNote: '本地笔记',
+    localNotes: '条本地笔记',
+    mobileHeroBody: '为阅读、研究、写作和 AI 协作准备的移动端知识空间。',
+    mobileHeroTitle: 'AI 驱动的知识工作台',
+    mobileTabsAi: 'AI',
+    mobileTabsHome: '首页',
+    mobileTabsMe: '我的',
+    mobileTabsNotes: '笔记',
+    mobileTabsSearch: '搜索',
+    newNote: '新建笔记',
+    noteOpened: '打开笔记',
+    openContext: '打开上下文 Cmd + .',
+    openCommandBar: '打开命令栏',
+    relatedNotes: '相关笔记',
+    resizeList: '调整笔记列表宽度',
+    resizeReset: '双击恢复默认宽度',
+    resizeSidebar: '调整侧边栏宽度',
+    saveFailed: '保存失败',
+    saveFailedCreateDetail: '创建新笔记前，当前笔记未能写入本地。',
+    saveFailedDetail: '最新更改已缓存在本浏览器中，并会在列表里标记为未保存。',
+    saveFailedSwitchDetail: '最新更改已缓存在本浏览器中，可以继续切换笔记。',
+    saved: '已保存',
+    savingBeforeNewNote: '新建前保存中',
+    savingBeforeSwitch: '切换前保存中',
+    savingLocally: '本地保存中',
+    sidebarAiBody: '询问笔记、生成时间线、总结想法。',
+    sidebarAiTitle: 'AI 助手',
+    timeline: 'AI 时间线',
+    untitled: '未命名',
+    workspace: '工作区',
+  },
+} as const;
+
+type I18nKey = keyof typeof translations.en;
 
 const defaultLayout: WorkspaceLayout = {
   sidebarWidth: SIDEBAR_DEFAULT,
@@ -91,17 +251,23 @@ function loadLayout(): WorkspaceLayout {
   }
 }
 
-function getNoteTitle(note: Note | NoteSummary | null) {
-  if (!note) return 'Untitled';
+function loadLanguage(): Language {
+  if (typeof window === 'undefined') return 'en';
+
+  return window.localStorage.getItem(LANGUAGE_STORAGE_KEY) === 'zh' ? 'zh' : 'en';
+}
+
+function getNoteTitle(note: Note | NoteSummary | null, t: (key: I18nKey) => string) {
+  if (!note) return t('untitled');
 
   const firstText = hasNoteContent(note) ? findFirstText(note.content) : '';
   return firstText || note.id;
 }
 
-function getNoteExcerpt(note: Note | NoteSummary | null) {
-  if (!note || !hasNoteContent(note)) return 'Local note';
+function getNoteExcerpt(note: Note | NoteSummary | null, t: (key: I18nKey) => string) {
+  if (!note || !hasNoteContent(note)) return t('localNote');
 
-  return findFirstText(note.content, 120) || 'Empty local note';
+  return findFirstText(note.content, 120) || t('emptyLocalNote');
 }
 
 function hasNoteContent(note: Note | NoteSummary): note is Note {
@@ -126,8 +292,50 @@ function findFirstText(value: unknown, limit = 56): string {
   return '';
 }
 
+function collectText(value: unknown): string {
+  if (!value || typeof value !== 'object') return '';
+
+  const node = value as { text?: unknown; content?: unknown };
+  const ownText = typeof node.text === 'string' ? node.text : '';
+  const childText = Array.isArray(node.content) ? node.content.map(collectText).join(' ') : '';
+
+  return [ownText, childText].filter(Boolean).join(' ');
+}
+
 function formatNoteTime(updatedAt: number) {
   return new Date(updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatNoteDate(updatedAt: number) {
+  return new Date(updatedAt).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' });
+}
+
+function countBlocks(value: unknown, type: string): number {
+  if (!value || typeof value !== 'object') return 0;
+
+  const node = value as { type?: unknown; content?: unknown };
+  const own = node.type === type ? 1 : 0;
+  const children = Array.isArray(node.content)
+    ? node.content.reduce((total, child) => total + countBlocks(child, type), 0)
+    : 0;
+
+  return own + children;
+}
+
+function getNoteStats(note: Note | null) {
+  const text = note ? collectText(note.content).trim() : '';
+  const compact = text.replace(/\s+/g, '');
+  const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
+  const chineseChars = compact.match(/[\u4e00-\u9fff]/g)?.length ?? 0;
+  const wordCount = Math.max(words, chineseChars);
+  const paragraphs = note ? Math.max(1, countBlocks(note.content, 'paragraph')) : 0;
+
+  return {
+    words: wordCount,
+    characters: compact.length,
+    paragraphs,
+    readingMinutes: Math.max(1, Math.ceil(wordCount / 350)),
+  };
 }
 
 function IconButton({
@@ -156,7 +364,7 @@ function IconButton({
   );
 }
 
-function ResizeHandle({ label, onDrag, onReset }: { label: string; onDrag: (delta: number) => void; onReset: () => void }) {
+function ResizeHandle({ label, resetLabel, onDrag, onReset }: { label: string; resetLabel: string; onDrag: (delta: number) => void; onReset: () => void }) {
   const handlePointerDown = useCallback(
     (event: React.PointerEvent<HTMLButtonElement>) => {
       event.preventDefault();
@@ -185,41 +393,42 @@ function ResizeHandle({ label, onDrag, onReset }: { label: string; onDrag: (delt
       className="aw-resize-handle"
       onDoubleClick={onReset}
       onPointerDown={handlePointerDown}
-      title={`${label}，双击恢复默认宽度`}
+      title={`${label}. ${resetLabel}`}
     />
   );
 }
 
-function MobileWorkspace() {
+function MobileWorkspace({ language, setLanguage, t }: { language: Language; setLanguage: Dispatch<SetStateAction<Language>>; t: (key: I18nKey) => string }) {
   return (
     <div className="aw-mobile">
       <header className="aw-mobile-topbar">
         <div>
-          <div className="aw-brand">Atlas</div>
-          <div className="aw-muted">AI Knowledge</div>
+          <div className="aw-brand">{t('brand')}</div>
+          <div className="aw-muted">{t('aiKnowledge')}</div>
         </div>
         <div className="aw-actions">
-          <IconButton label="搜索">⌕</IconButton>
-          <IconButton label="新建笔记" dark>+</IconButton>
+          <IconButton label={t('language')} onClick={() => setLanguage(language === 'en' ? 'zh' : 'en')}>{language === 'en' ? '中' : 'En'}</IconButton>
+          <IconButton label={t('mobileTabsSearch')}>⌕</IconButton>
+          <IconButton label={t('newNote')} dark>+</IconButton>
         </div>
       </header>
 
       <main className="aw-mobile-scroll">
         <section className="aw-mobile-hero">
           <p className="aw-kicker">Personal research OS</p>
-          <h1>AI 驱动的知识工作台</h1>
-          <p>为阅读、研究、写作和 AI 协作准备的移动端知识空间。</p>
+          <h1>{t('mobileHeroTitle')}</h1>
+          <p>{t('mobileHeroBody')}</p>
         </section>
 
         <section className="aw-command aw-command--mobile">
           <div>
-            <span>AI Command</span>
-            <strong>Ask AI anything about your notes</strong>
+            <span>{t('aiCommand')}</span>
+            <strong>{t('askAiAnything')}</strong>
           </div>
-          <button>搜索笔记、生成总结、建立关联...</button>
+          <button>{t('commandPlaceholder')}</button>
         </section>
 
-        <nav className="aw-chip-row" aria-label="分类">
+        <nav className="aw-chip-row" aria-label={t('category')}>
           {chips.map((chip, index) => (
             <button className={index === 0 ? 'is-active' : ''} key={chip}>{chip}</button>
           ))}
@@ -230,11 +439,11 @@ function MobileWorkspace() {
             <article className="aw-note-card" key={note.title}>
               <div className="aw-note-card__top">
                 <h2>{note.title}</h2>
-                <IconButton label="打开笔记">↗</IconButton>
+                <IconButton label={t('noteOpened')}>↗</IconButton>
               </div>
               <p>{note.desc}</p>
               <div className="aw-ai-summary">
-                <span>AI Summary</span>
+                <span>{t('aiSummary')}</span>
                 <p>通过身份符号控制与文化重塑，逐渐完成对社会心理结构的长期塑造。</p>
               </div>
               <footer>
@@ -250,7 +459,7 @@ function MobileWorkspace() {
       </main>
 
       <nav className="aw-mobile-tabs" aria-label="主导航">
-        {['首页', '搜索', 'AI', '笔记', '我的'].map((item, index) => (
+        {[t('mobileTabsHome'), t('mobileTabsSearch'), t('mobileTabsAi'), t('mobileTabsNotes'), t('mobileTabsMe')].map((item, index) => (
           <button className={index === 0 ? 'is-active' : ''} key={item}>
             <span>{index === 0 ? '●' : '○'}</span>
             {item}
@@ -261,7 +470,7 @@ function MobileWorkspace() {
   );
 }
 
-function DesktopWorkspace() {
+function DesktopWorkspace({ language, setLanguage, t }: { language: Language; setLanguage: Dispatch<SetStateAction<Language>>; t: (key: I18nKey) => string }) {
   const [layout, setLayout] = useState<WorkspaceLayout>(loadLayout);
   const editorHostRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<Editor | null>(null);
@@ -269,10 +478,11 @@ function DesktopWorkspace() {
   const applyingRemoteContentRef = useRef(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [activeNote, setActiveNote] = useState<Note | null>(null);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>({
-    label: 'Loading',
+    labelKey: 'loading',
     tone: 'live',
-    detail: null,
+    detailKey: null,
   });
 
   useEffect(() => {
@@ -338,16 +548,16 @@ function DesktopWorkspace() {
 
     const unbind = bindEditorEvents(editor, {
       shouldSave: () => !applyingRemoteContentRef.current,
-      onSaving: () => setSaveState({ label: 'Saving locally', tone: 'live', detail: null }),
+      onSaving: () => setSaveState({ labelKey: 'savingLocally', tone: 'live', detailKey: null }),
       onSaved: async () => {
-        setSaveState({ label: 'Saved', tone: 'idle', detail: null });
+        setSaveState({ labelKey: 'saved', tone: 'idle', detailKey: null });
         await refreshNotes(activeNoteIdRef.current ?? undefined);
       },
       onError: () =>
         setSaveState({
-          label: 'Save failed',
+          labelKey: 'saveFailed',
           tone: 'error',
-          detail: 'Latest changes are still in memory, but the last local write did not complete.',
+          detailKey: 'saveFailedDetail',
         }),
     });
 
@@ -359,7 +569,7 @@ function DesktopWorkspace() {
       activeNoteIdRef.current = note.id;
       setActiveNote(note);
       setEditorContent(editor, note);
-      setSaveState({ label: 'Saved', tone: 'idle', detail: null });
+      setSaveState({ labelKey: 'saved', tone: 'idle', detailKey: null });
       await refreshNotes(note.id);
     };
 
@@ -398,9 +608,20 @@ function DesktopWorkspace() {
   );
 
   const handleCreateNote = async () => {
+    let previousSaveFailed = false;
+
     try {
-      setSaveState({ label: 'Saving before new note', tone: 'live', detail: null });
-      await flushActiveNote();
+      setSaveState({ labelKey: 'savingBeforeNewNote', tone: 'live', detailKey: null });
+      try {
+        await flushActiveNote();
+      } catch {
+        previousSaveFailed = true;
+        setSaveState({
+          labelKey: 'saveFailed',
+          tone: 'error',
+          detailKey: 'saveFailedCreateDetail',
+        });
+      }
 
       const note = await createNote();
       setCurrentNote(note.id);
@@ -411,30 +632,44 @@ function DesktopWorkspace() {
         setEditorContent(editorRef.current, note);
       }
 
-      setSaveState({ label: 'Saved', tone: 'idle', detail: null });
+      setSaveState(
+        previousSaveFailed
+          ? { labelKey: 'saveFailed', tone: 'error', detailKey: 'saveFailedCreateDetail' }
+          : { labelKey: 'saved', tone: 'idle', detailKey: null },
+      );
       await refreshNotes(note.id);
     } catch {
       setSaveState({
-        label: 'Save failed',
+        labelKey: 'saveFailed',
         tone: 'error',
-        detail: 'The current note could not be written locally before creating a new note.',
+        detailKey: 'saveFailedCreateDetail',
       });
     }
   };
 
   const handleSwitchNote = async (noteId: string) => {
     if (noteId === activeNoteIdRef.current) return;
+    let previousSaveFailed = false;
 
     try {
-      setSaveState({ label: 'Saving before switch', tone: 'live', detail: null });
-      await flushActiveNote();
+      setSaveState({ labelKey: 'savingBeforeSwitch', tone: 'live', detailKey: null });
+      try {
+        await flushActiveNote();
+      } catch {
+        previousSaveFailed = true;
+        setSaveState({
+          labelKey: 'saveFailed',
+          tone: 'error',
+          detailKey: 'saveFailedSwitchDetail',
+        });
+      }
 
       const nextNote = await loadNote(noteId);
       if (!nextNote) {
         setSaveState({
-          label: 'Load failed',
+          labelKey: 'loadFailed',
           tone: 'error',
-          detail: 'The selected note could not be loaded from local storage.',
+          detailKey: 'loadFailedDetail',
         });
         return;
       }
@@ -447,56 +682,70 @@ function DesktopWorkspace() {
         setEditorContent(editorRef.current, nextNote);
       }
 
-      setSaveState({ label: 'Saved', tone: 'idle', detail: null });
+      setSaveState(
+        previousSaveFailed
+          ? { labelKey: 'saveFailed', tone: 'error', detailKey: 'saveFailedSwitchDetail' }
+          : { labelKey: 'saved', tone: 'idle', detailKey: null },
+      );
       await refreshNotes(noteId);
     } catch {
       setSaveState({
-        label: 'Save failed',
+        labelKey: 'saveFailed',
         tone: 'error',
-        detail: 'Switch was stopped because the current note could not be written locally.',
+        detailKey: 'saveFailedSwitchDetail',
       });
     }
   };
 
-  const activeTitle = getNoteTitle(activeNote);
-  const activeExcerpt = getNoteExcerpt(activeNote);
+  const activeTitle = getNoteTitle(activeNote, t);
+  const activeStats = getNoteStats(activeNote);
 
   return (
     <div className={`aw-desktop ${layout.contextOpen ? 'has-context' : ''} ${layout.focusMode ? 'is-focus-mode' : ''}`} style={workspaceStyle}>
       <aside className="aw-sidebar">
         <div className="aw-sidebar__brand">
-          <div className="aw-logo">A</div>
-          <div>
-            <div className="aw-brand">Atlas</div>
-            <div className="aw-muted">AI Knowledge OS</div>
+          <div className="aw-window-dots" aria-hidden="true">
+            <span />
+            <span />
+            <span />
           </div>
+          <button className="aw-sidebar-tune" aria-label="Sidebar settings">☷</button>
         </div>
 
-        <nav className="aw-space-list" aria-label="工作区">
-          {spaces.map((space) => (
-            <button className={space === 'History' ? 'is-active' : ''} key={space}>{space}</button>
+        <nav className="aw-space-list" aria-label={t('workspace')}>
+          {bearSections.map((section) => (
+            <section className="aw-tree-section" key={section.id}>
+              <button className="aw-tree-heading">
+                <span>{section.icon}</span>
+                {section.label}
+              </button>
+              {section.items.map((item) => (
+                <button
+                  className={`${item.active ? 'is-active' : ''} ${item.child ? 'is-child' : ''}`}
+                  key={`${section.id}-${item.label}`}
+                >
+                  <span className="aw-tree-icon">{item.icon}</span>
+                  {item.label}
+                </button>
+              ))}
+            </section>
           ))}
         </nav>
-
-        <section className="aw-sidebar-ai">
-          <span>AI Assistant</span>
-          <p>Ask about notes, build timelines, summarize ideas.</p>
-          <button>Open Command Bar</button>
-        </section>
       </aside>
       <ResizeHandle
-        label="调整 Sidebar 宽度"
+        label={t('resizeSidebar')}
+        resetLabel={t('resizeReset')}
         onDrag={resizeSidebar}
         onReset={() => setLayout((current) => ({ ...current, sidebarWidth: SIDEBAR_DEFAULT }))}
       />
 
       <section className="aw-note-list">
-        <header>
+        <header className="aw-note-list__header">
           <div>
-            <strong>History</strong>
-            <span>{notes.length} local notes</span>
+            <strong>清朝</strong>
+            <span>{language === 'zh' ? `${notes.length} ${t('localNotes')}` : `${notes.length} ${t('localNotes')}`}</span>
           </div>
-          <IconButton label="新建笔记" onClick={() => { void handleCreateNote(); }}>+</IconButton>
+          <IconButton label={t('newNote')} onClick={() => { void handleCreateNote(); }}>+</IconButton>
         </header>
         <div className="aw-note-list__items">
           {notes.map((note) => (
@@ -505,52 +754,113 @@ function DesktopWorkspace() {
               key={note.id}
               onClick={() => { void handleSwitchNote(note.id); }}
             >
-              <strong>{getNoteTitle(note)}</strong>
-              <span>{getNoteExcerpt(note)}</span>
-              <small>{formatNoteTime(note.updatedAt)}</small>
+              <div className="aw-note-list__title-row">
+                <strong>{getNoteTitle(note, t)}</strong>
+                {note.localStatus === 'unsaved' ? <em>{t('saveFailed')}</em> : null}
+              </div>
+              <span>{getNoteExcerpt(note, t)}</span>
+              <small>{formatNoteDate(note.updatedAt)}</small>
             </button>
           ))}
         </div>
       </section>
       <ResizeHandle
-        label="调整 Note List 宽度"
+        label={t('resizeList')}
+        resetLabel={t('resizeReset')}
         onDrag={resizeList}
         onReset={() => setLayout((current) => ({ ...current, listWidth: LIST_DEFAULT }))}
       />
 
       <main className="aw-editor-shell">
         <div className="aw-editor-toolbar">
-          <IconButton
-            active={layout.focusMode}
-            label="专注模式 Cmd + \\"
-            onClick={() => setLayout((current) => ({ ...current, focusMode: !current.focusMode }))}
-          >
-            ⛶
-          </IconButton>
-          <IconButton
-            active={layout.contextOpen}
-            label="打开 Context Cmd + ."
-            onClick={() => setLayout((current) => ({ ...current, contextOpen: !current.contextOpen, focusMode: false }))}
-          >
-            ◫
-          </IconButton>
+          <div className="aw-editor-titleline">
+            <button aria-label="Back">‹</button>
+            <button aria-label="Forward">›</button>
+            <strong>{activeTitle}</strong>
+          </div>
+          <div className="aw-editor-tools">
+            <button aria-label="Bold">B</button>
+            <button aria-label="Italic"><em>I</em></button>
+            <button aria-label="Underline"><u>U</u></button>
+            <button
+              aria-label="Note statistics"
+              aria-expanded={inspectorOpen}
+              className={inspectorOpen ? 'is-active' : ''}
+              onClick={() => setInspectorOpen((current) => !current)}
+            >
+              ⓘ
+            </button>
+            <button
+              aria-label={t('language')}
+              onClick={() => setLanguage((current) => (current === 'en' ? 'zh' : 'en'))}
+            >
+              {language === 'en' ? '中' : 'En'}
+            </button>
+            <button
+              aria-label={t('focusMode')}
+              className={layout.focusMode ? 'is-active' : ''}
+              onClick={() => setLayout((current) => ({ ...current, focusMode: !current.focusMode }))}
+            >
+              ⛶
+            </button>
+            <button aria-label="More">⋮</button>
+          </div>
         </div>
+        {inspectorOpen ? (
+          <aside className="aw-stat-popover">
+            <h2>统计</h2>
+            <div className="aw-stat-tabs">
+              <button className="is-active">▥</button>
+              <button>☷</button>
+              <button>↩</button>
+            </div>
+            <div className="aw-stat-grid">
+              <section>
+                <strong>{activeStats.words.toLocaleString()}</strong>
+                <span>字数</span>
+              </section>
+              <section>
+                <strong>{activeStats.characters.toLocaleString()}</strong>
+                <span>字符</span>
+              </section>
+              <section>
+                <strong>{activeStats.paragraphs}</strong>
+                <span>段落</span>
+              </section>
+              <section>
+                <strong>{activeStats.readingMinutes}分钟</strong>
+                <span>阅读时间</span>
+              </section>
+            </div>
+            <div className="aw-stat-dates">
+              <div>
+                <strong>{activeNote ? new Date(activeNote.updatedAt).toLocaleString('zh-CN') : '-'}</strong>
+                <span>编辑日期</span>
+              </div>
+              <div>
+                <strong>{activeNote ? new Date(activeNote.updatedAt).toLocaleString('zh-CN') : '-'}</strong>
+                <span>创建日期</span>
+              </div>
+            </div>
+          </aside>
+        ) : null}
         <article className="aw-editor">
           <div className="aw-editor-meta">
             <div>
-              <div className="aw-breadcrumb">History / Local-first</div>
+              <div className="aw-tag-row">
+                <span>#study/历史/清朝</span>
+              </div>
               <h1>{activeTitle}</h1>
-              <p>{activeExcerpt}</p>
             </div>
             <div className="aw-save-stack">
-              <span className="aw-status-pill" data-tone={saveState.tone}>{saveState.label}</span>
+              <span className="aw-status-pill" data-tone={saveState.tone}>{t(saveState.labelKey)}</span>
               {activeNote ? <small>{formatNoteTime(activeNote.updatedAt)}</small> : null}
             </div>
           </div>
 
-          {saveState.detail ? (
+          {saveState.detailKey ? (
             <div className="aw-inline-alert" role="status" aria-live="polite">
-              {saveState.detail}
+              {t(saveState.detailKey)}
             </div>
           ) : null}
 
@@ -559,16 +869,16 @@ function DesktopWorkspace() {
       </main>
 
       <aside className="aw-context">
-        <p className="aw-kicker">Context</p>
+        <p className="aw-kicker">{t('context')}</p>
         <section>
-          <h2>Related Notes</h2>
+          <h2>{t('relatedNotes')}</h2>
           {relatedNotes.map((item) => (
             <button key={item}>{item}</button>
           ))}
         </section>
 
         <section>
-          <h2>AI Timeline</h2>
+          <h2>{t('timeline')}</h2>
           <ol className="aw-timeline">
             {timeline.map((item) => (
               <li key={item}>{item}</li>
@@ -577,8 +887,8 @@ function DesktopWorkspace() {
         </section>
 
         <section className="aw-context-command">
-          <h2>AI Summary</h2>
-          <p>身份符号、强制默认与集体记忆重写构成了这篇笔记的主要论证路径。</p>
+          <h2>{t('aiSummary')}</h2>
+          <p>{t('contextSummary')}</p>
         </section>
       </aside>
     </div>
@@ -586,10 +896,17 @@ function DesktopWorkspace() {
 }
 
 export function WorkspaceViewFinal() {
+  const [language, setLanguage] = useState<Language>(loadLanguage);
+  const t = useCallback((key: I18nKey) => translations[language][key], [language]);
+
+  useEffect(() => {
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+  }, [language]);
+
   return (
     <div className="aw-root">
-      <MobileWorkspace />
-      <DesktopWorkspace />
+      <MobileWorkspace language={language} setLanguage={setLanguage} t={t} />
+      <DesktopWorkspace language={language} setLanguage={setLanguage} t={t} />
     </div>
   );
 }

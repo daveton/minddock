@@ -320,23 +320,23 @@ button {
       6px
       var(--list-width)
       6px
-      minmax(0, 1fr)
-      var(--context-width);
+      minmax(0, 1fr);
     overflow: hidden;
+    background: #ffffff;
   }
 
   .aw-sidebar,
-  .aw-note-list,
-  .aw-context {
+  .aw-note-list {
     min-height: 0;
     border-right: 1px solid var(--aw-line);
-    background: #f2f2ee;
   }
 
   .aw-sidebar {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    background: linear-gradient(90deg, #292d2e, #242829);
+    color: #c9cdcc;
     transition: opacity 180ms, transform 220ms;
   }
 
@@ -351,80 +351,114 @@ button {
   }
 
   .aw-sidebar__brand {
-    justify-content: flex-start;
-    gap: 12px;
+    border-bottom: 0;
+    justify-content: space-between;
+    padding: 0 24px;
   }
 
-  .aw-logo {
-    display: grid;
+  .aw-window-dots {
+    display: flex;
+    gap: 10px;
+  }
+
+  .aw-window-dots span {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+  }
+
+  .aw-window-dots span:nth-child(1) {
+    background: #ff5f57;
+  }
+
+  .aw-window-dots span:nth-child(2) {
+    background: #ffbd2e;
+  }
+
+  .aw-window-dots span:nth-child(3) {
+    background: #28c840;
+  }
+
+  .aw-sidebar-tune {
     width: 34px;
     height: 34px;
-    place-items: center;
-    border-radius: 10px;
-    background: var(--aw-black);
-    color: white;
-    font-weight: 760;
+    border-radius: 8px;
+    background: transparent;
+    color: #9ea3a2;
+    cursor: pointer;
+    font-size: 24px;
   }
 
   .aw-space-list,
   .aw-note-list__items {
     display: grid;
-    gap: 4px;
     overflow: auto;
-    padding: 14px 12px;
   }
 
-  .aw-space-list button {
-    height: 38px;
-    border-radius: 10px;
+  .aw-space-list {
+    align-content: start;
+    gap: 14px;
+    padding: 8px 12px 24px;
+  }
+
+  .aw-tree-section {
+    display: grid;
+    gap: 2px;
+  }
+
+  .aw-space-list button,
+  .aw-tree-heading {
+    display: flex;
+    height: 32px;
+    align-items: center;
+    gap: 12px;
+    border-radius: 8px;
     background: transparent;
-    color: var(--aw-soft-ink);
+    color: #c9cdcc;
     padding: 0 12px;
     text-align: left;
     cursor: pointer;
+    font-size: 17px;
+    font-weight: 650;
   }
 
   .aw-space-list button:hover,
   .aw-space-list .is-active {
-    background: rgba(31, 33, 31, 0.06);
-    color: var(--aw-ink);
+    background: rgba(255, 255, 255, 0.13);
+    color: #ffffff;
   }
 
-  .aw-sidebar-ai {
-    margin: auto 14px 14px;
-    border: 1px solid var(--aw-line);
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.68);
-    padding: 16px;
+  .aw-tree-heading {
+    color: #d5d9d8;
+    font-size: 18px;
   }
 
-  .aw-sidebar-ai span {
-    color: var(--aw-faint-ink);
-    font-size: 12px;
+  .aw-tree-icon {
+    display: inline-grid;
+    width: 30px;
+    place-items: center;
+    color: #a2a7a6;
+    font-size: 19px;
   }
 
-  .aw-sidebar-ai p {
-    margin: 8px 0 14px;
-    color: var(--aw-soft-ink);
-    font-size: 14px;
-    line-height: 1.55;
+  .aw-space-list button.is-child {
+    padding-left: 34px;
   }
 
-  .aw-sidebar-ai button {
-    width: 100%;
-    border-radius: 10px;
-    background: var(--aw-black);
-    color: white;
-    padding: 11px 12px;
-    cursor: pointer;
+  .aw-space-list button.is-active .aw-tree-icon {
+    color: #ffffff;
   }
 
   .aw-note-list {
     display: flex;
     flex-direction: column;
-    background: var(--aw-bg);
+    background: #fafafa;
     overflow: hidden;
     transition: opacity 180ms, transform 220ms;
+  }
+
+  .aw-note-list__header {
+    background: #fbfbfb;
   }
 
   .aw-note-list header strong,
@@ -439,19 +473,32 @@ button {
   }
 
   .aw-note-list__items button {
-    border-radius: 16px;
+    position: relative;
+    min-height: 112px;
+    border-bottom: 1px solid #e3e3e3;
+    border-radius: 0;
     background: transparent;
-    padding: 15px;
+    padding: 17px 20px 15px;
     text-align: left;
     cursor: pointer;
   }
 
   .aw-note-list__items .is-active {
-    background: #e7e5de;
+    background: #f0f0f2;
+  }
+
+  .aw-note-list__items .is-active::before {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 5px;
+    background: #e64949;
+    content: '';
   }
 
   .aw-note-list__items button:hover {
-    background: #eeeee9;
+    background: #f3f3f3;
   }
 
   .aw-note-list__items strong,
@@ -461,62 +508,225 @@ button {
   }
 
   .aw-note-list__items strong {
-    font-size: 15px;
-    line-height: 1.45;
+    display: -webkit-box;
+    overflow: hidden;
+    color: #404040;
+    font-size: 18px;
+    font-weight: 760;
+    line-height: 1.3;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .aw-note-list__title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .aw-note-list__title-row strong {
+    min-width: 0;
+  }
+
+  .aw-note-list__title-row em {
+    flex: 0 0 auto;
+    border: 1px solid rgba(167, 95, 59, 0.28);
+    border-radius: 999px;
+    background: rgba(167, 95, 59, 0.1);
+    color: var(--aw-clay);
+    padding: 3px 7px;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: 1.2;
   }
 
   .aw-note-list__items span {
-    margin-top: 6px;
-    color: var(--aw-soft-ink);
-    font-size: 13px;
-    line-height: 1.55;
+    display: -webkit-box;
+    overflow: hidden;
+    margin-top: 8px;
+    color: #7a7a7a;
+    font-size: 14px;
+    line-height: 1.45;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
 
   .aw-note-list__items small {
-    margin-top: 11px;
-    color: var(--aw-faint-ink);
-    font-size: 12px;
+    margin-top: 10px;
+    color: #a5a5a5;
+    font-size: 14px;
   }
 
   .aw-editor-shell {
     position: relative;
     overflow: auto;
-    background: #fbfbf8;
+    background: #ffffff;
   }
 
   .aw-editor-toolbar {
     position: sticky;
     top: 0;
-    z-index: 2;
+    z-index: 4;
     display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    padding: 12px 16px 0;
-    pointer-events: none;
+    height: 54px;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #e6e6e6;
+    background: rgba(255, 255, 255, 0.92);
+    padding: 0 18px;
+    backdrop-filter: blur(18px);
   }
 
-  .aw-editor-toolbar .aw-icon-button {
-    background: rgba(255, 255, 255, 0.78);
-    backdrop-filter: blur(16px);
-    pointer-events: auto;
+  .aw-editor-titleline,
+  .aw-editor-tools {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .aw-editor-titleline strong {
+    overflow: hidden;
+    max-width: 54vw;
+    color: #3f3f3f;
+    font-size: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .aw-editor-titleline button,
+  .aw-editor-tools button {
+    display: grid;
+    min-width: 30px;
+    height: 30px;
+    place-items: center;
+    border-radius: 8px;
+    background: transparent;
+    color: #858585;
+    cursor: pointer;
+    font-size: 22px;
+  }
+
+  .aw-editor-tools button {
+    font-size: 18px;
+    font-weight: 760;
+  }
+
+  .aw-editor-titleline button:hover,
+  .aw-editor-tools button:hover,
+  .aw-editor-tools .is-active {
+    background: #f0f0f0;
+    color: #4d4d4d;
+  }
+
+  .aw-stat-popover {
+    position: fixed;
+    top: 76px;
+    right: 24px;
+    z-index: 8;
+    width: min(360px, calc(100vw - 48px));
+    border: 1px solid rgba(0, 0, 0, 0.14);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.2);
+    padding: 18px;
+    backdrop-filter: blur(22px);
+  }
+
+  .aw-stat-popover h2 {
+    margin: 0 0 16px;
+    color: #6a6a6a;
+    font-size: 18px;
+    text-align: center;
+  }
+
+  .aw-stat-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    overflow: hidden;
+    border-radius: 8px;
+    background: #f2f3f5;
+    padding: 2px;
+  }
+
+  .aw-stat-tabs button {
+    height: 30px;
+    border-radius: 7px;
+    background: transparent;
+    color: #606060;
+    cursor: pointer;
+    font-size: 18px;
+  }
+
+  .aw-stat-tabs .is-active {
+    background: #ffffff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  }
+
+  .aw-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .aw-stat-grid section {
+    min-height: 92px;
+    border-radius: 8px;
+    background: #f0f1f3;
+    padding: 16px;
+  }
+
+  .aw-stat-grid strong {
+    display: block;
+    color: #414141;
+    font-size: 25px;
+    line-height: 1.1;
+  }
+
+  .aw-stat-grid span,
+  .aw-stat-dates span {
+    display: block;
+    margin-top: 20px;
+    color: #919191;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .aw-stat-dates {
+    overflow: hidden;
+    margin-top: 16px;
+    border-radius: 8px;
+    background: #f0f1f3;
+  }
+
+  .aw-stat-dates div {
+    padding: 14px 16px;
+  }
+
+  .aw-stat-dates div + div {
+    border-top: 1px solid #dddddd;
+  }
+
+  .aw-stat-dates strong {
+    display: block;
+    color: #4b4b4b;
+    font-size: 16px;
   }
 
   .aw-editor {
-    max-width: 760px;
+    max-width: 920px;
     margin: 0 auto;
-    padding: 36px 64px 96px;
-  }
-
-  .aw-breadcrumb {
-    margin-bottom: 8px;
-    color: var(--aw-faint-ink);
-    font-size: 14px;
+    padding: 64px 70px 110px;
   }
 
   .aw-editor h1 {
-    margin: 0;
-    font-size: 28px;
-    line-height: 1.13;
+    margin: 0 0 26px;
+    color: #3f3f3f;
+    font-size: 40px;
+    line-height: 1.18;
     letter-spacing: 0;
   }
 
@@ -525,16 +735,8 @@ button {
     align-items: flex-start;
     justify-content: space-between;
     gap: 24px;
-    border-bottom: 1px solid var(--aw-line);
-    padding-bottom: 22px;
-  }
-
-  .aw-editor-meta p {
-    max-width: 58ch;
-    margin: 10px 0 0;
-    color: var(--aw-soft-ink);
-    font-size: 14px;
-    line-height: 1.6;
+    border-bottom: 0;
+    padding-bottom: 0;
   }
 
   .aw-save-stack {
@@ -582,15 +784,15 @@ button {
   }
 
   .aw-editor-host {
-    margin-top: 28px;
+    margin-top: 6px;
   }
 
   .minddock-editor {
     min-height: 58vh;
     outline: 0;
-    color: #292b27;
-    font-size: 17px;
-    line-height: 1.95;
+    color: #444444;
+    font-size: 19px;
+    line-height: 1.9;
   }
 
   .minddock-editor > *:first-child {
@@ -614,11 +816,11 @@ button {
   }
 
   .minddock-editor h1 {
-    font-size: 36px;
+    font-size: 38px;
   }
 
   .minddock-editor h2 {
-    font-size: 28px;
+    font-size: 30px;
   }
 
   .minddock-editor h3 {
@@ -626,8 +828,8 @@ button {
   }
 
   .minddock-editor blockquote {
-    border-left: 3px solid var(--aw-green);
-    background: #f0f0eb;
+    border-left: 3px solid #e64949;
+    background: #f6f6f6;
     padding: 14px 18px;
   }
 
@@ -645,15 +847,16 @@ button {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-bottom: 48px;
+    margin-bottom: 22px;
   }
 
   .aw-tag-row span {
     border-radius: 999px;
-    background: #efefea;
-    color: var(--aw-soft-ink);
-    padding: 8px 12px;
-    font-size: 13px;
+    background: #e9e9e9;
+    color: #777777;
+    padding: 7px 13px;
+    font-size: 16px;
+    font-weight: 650;
   }
 
   .aw-editor p {
@@ -715,73 +918,7 @@ button {
   }
 
   .aw-context {
-    border-right: 0;
-    border-left: 1px solid var(--aw-line);
-    overflow: auto;
-    padding: 24px 18px;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateX(18px);
-    transition: opacity 180ms, transform 220ms;
-  }
-
-  .has-context .aw-context {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateX(0);
-  }
-
-  .aw-context section {
-    border-bottom: 1px solid var(--aw-line);
-    padding: 22px 0;
-  }
-
-  .aw-context h2 {
-    margin: 0 0 16px;
-    font-size: 15px;
-  }
-
-  .aw-context section button {
-    display: block;
-    width: 100%;
-    border-radius: 10px;
-    background: transparent;
-    color: var(--aw-soft-ink);
-    padding: 9px 0;
-    text-align: left;
-    cursor: pointer;
-  }
-
-  .aw-context section button:hover {
-    color: var(--aw-ink);
-  }
-
-  .aw-timeline {
-    margin: 0;
-    border-left: 1px solid var(--aw-strong-line);
-    padding-left: 18px;
-    color: var(--aw-soft-ink);
-    font-size: 14px;
-    line-height: 2.2;
-  }
-
-  .aw-context-command {
-    border-bottom: 0;
-    border-radius: 8px;
-    background: var(--aw-black);
-    color: white;
-    padding: 18px;
-  }
-
-  .aw-context-command h2 {
-    margin-bottom: 10px;
-  }
-
-  .aw-context-command p {
-    margin: 0;
-    color: rgba(255, 255, 255, 0.68);
-    font-size: 14px;
-    line-height: 1.65;
+    display: none;
   }
 
   .aw-resize-handle {

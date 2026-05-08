@@ -7,7 +7,14 @@ import { normalizeDocument } from './documentModel'
 
 const DEFAULT_NOTE_ID = 'note-1'
 const LAST_ACTIVE_NOTE_KEY = 'minddock:last-active-note-id'
+const UNSAVED_DRAFTS_KEY = 'minddock:unsaved-note-drafts:v1'
 const MAX_SNAPSHOTS_PER_NOTE = 20
+
+type UnsavedDraft = {
+  id: string
+  content: Record<string, unknown>
+  updatedAt: number
+}
 
 export async function saveCurrentNote(content: Record<string, unknown>) {
   const noteId = ensureCurrentNoteId()
@@ -34,6 +41,7 @@ export async function saveNoteById(
     await tx.objectStore('noteSnapshots').put(createSnapshot(note, normalized.repaired ? 'repair' : 'save'))
     await tx.done
     await pruneSnapshots(noteId)
+    clearUnsavedDraft(noteId)
 
     if (normalized.issues.length > 0) {
       console.info('[DOCUMENT_REPAIR]', normalized.issues)
@@ -42,12 +50,24 @@ export async function saveNoteById(
     return { success: true }
   } catch (error) {
     const storageError = handleStorageError(error as Error)
+    cacheUnsavedDraft(noteId, content)
     console.error('Save failed:', storageError)
     return { success: false, error: storageError }
   }
 }
 
 export async function loadNote(id: string) {
+  const draft = getUnsavedDraft(id)
+  if (draft) {
+    const repairedDraft = await repairLoadedNote({
+      id: draft.id,
+      content: draft.content,
+      updatedAt: draft.updatedAt,
+      localStatus: 'unsaved',
+    })
+    return { ...repairedDraft, localStatus: 'unsaved' as const }
+  }
+
   const cached = noteCache.get(id)
   if (cached) {
     return repairLoadedNote(cached)
@@ -112,7 +132,19 @@ export async function ensureDefaultNote() {
 
 export async function listNotes(): Promise<NoteSummary[]> {
   const db = await dbPromise
-  return db.getAll('notes')
+  const notes = await db.getAll('notes')
+  const drafts = getUnsavedDrafts()
+  const byId = new Map<string, NoteSummary>(notes.map((note) => [note.id, note]))
+
+  for (const draft of drafts) {
+    byId.set(draft.id, {
+      id: draft.id,
+      updatedAt: draft.updatedAt,
+      localStatus: 'unsaved',
+    })
+  }
+
+  return Array.from(byId.values())
 }
 
 export function sortNotes(notes: NoteSummary[]): NoteSummary[] {
@@ -249,4 +281,64 @@ function persistLastActiveNoteId(id: string) {
   }
 
   window.localStorage.setItem(LAST_ACTIVE_NOTE_KEY, id)
+}
+
+function cacheUnsavedDraft(noteId: string, content: Record<string, unknown>) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const normalized = normalizeDocument(content)
+  const drafts = getUnsavedDrafts().filter((draft) => draft.id !== noteId)
+  drafts.push({
+    id: noteId,
+    content: normalized.document,
+    updatedAt: Date.now(),
+  })
+  window.localStorage.setItem(UNSAVED_DRAFTS_KEY, JSON.stringify(drafts))
+}
+
+function clearUnsavedDraft(noteId: string) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const nextDrafts = getUnsavedDrafts().filter((draft) => draft.id !== noteId)
+  if (nextDrafts.length === 0) {
+    window.localStorage.removeItem(UNSAVED_DRAFTS_KEY)
+    return
+  }
+
+  window.localStorage.setItem(UNSAVED_DRAFTS_KEY, JSON.stringify(nextDrafts))
+}
+
+function getUnsavedDraft(noteId: string) {
+  return getUnsavedDrafts().find((draft) => draft.id === noteId) ?? null
+}
+
+function getUnsavedDrafts(): UnsavedDraft[] {
+  if (typeof window === 'undefined') {
+    return []
+  }
+
+  try {
+    const saved = window.localStorage.getItem(UNSAVED_DRAFTS_KEY)
+    if (!saved) return []
+
+    const parsed = JSON.parse(saved)
+    if (!Array.isArray(parsed)) return []
+
+    return parsed.filter(isUnsavedDraft)
+  } catch {
+    return []
+  }
+}
+
+function isUnsavedDraft(value: unknown): value is UnsavedDraft {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const draft = value as Partial<UnsavedDraft>
+  return typeof draft.id === 'string' && typeof draft.updatedAt === 'number' && Boolean(draft.content)
 }
