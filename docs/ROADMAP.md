@@ -17,14 +17,38 @@
 
 - 笔记创建、编辑、切换、删除、恢复都在本地可用。
 - TipTap / ProseMirror 作为编辑器内核接入当前工作台。
+- 文档模型确定为 Hybrid Block Document：普通 Markdown 语义 + 稳定 block id / type / metadata。
 - 支持基础 Markdown input rules：标题、列表、引用、代码块、加粗。
 - 中文 IME 输入稳定，composition 期间不误触发转换。
+- 不做实时全文 Markdown 解析；只允许当前 block 增量解析和延迟 normalization。
 - IndexedDB 仍然是本地主数据源。
+- IndexedDB 写入必须 debounce / batch，默认 300-800ms，不进入输入关键路径。
 - 主数据可导出为 Markdown，或保留稳定的结构化 JSON 转换路径。
 - 输入延迟 p95 小于 16ms。
-- 页面刷新和崩溃恢复经过验证。
+- 页面刷新和崩溃恢复经过验证，最小 crash-safe persistence 可用。
 - 多标签页行为有明确策略，并完成最小处理。
 - 默认阅读态、点击编辑、上下文工具栏等安静编辑体验完成最小版本。
+
+## Phase 1.5：Editor Reliability
+
+目标：在扩展知识组织和 AI 前，先建立用户对编辑器和本地数据的信任。
+
+范围：
+
+- Crash recovery：刷新、tab crash、浏览器异常关闭后可恢复最近编辑。
+- 双层保存：实时内存 editor state + append-only local snapshot / journal。
+- Undo consistency：保存、恢复、切换笔记不破坏 undo/redo 语义。
+- Snapshot validation：保存前后校验 document / block 不变量。
+- Corrupted doc repair：损坏 JSON、缺失 block id、异常 block 顺序可尽量修复。
+- Editor fuzz testing：随机输入、删除、粘贴、切换、undo/redo 的最小压力测试。
+- Editor Benchmark：10 万字文档、3000 blocks、中文 IME、快速切换、大量 undo 的性能基准。
+
+完成标准：
+
+- 输入延迟 p95 仍小于 16ms。
+- 大文档打开、输入、切换有可重复 benchmark 记录。
+- 主数据损坏时有恢复路径，不静默吞掉用户内容。
+- 可靠性 Gate 通过前，不进入 Phase 2 的重功能建设。
 
 ## Phase 2：知识组织
 
@@ -34,10 +58,11 @@
 
 - 块级 Markdown 结构识别。
 - 标签。
-- 搜索。
+- 搜索优先：标题、正文、标签、block 内容先可用。
 - 键盘优先导航。
 - 基于真实本地数据的相关笔记区域。
 - `[[双链]]` 和 block references 的最小能力。
+- 暂不做图谱作为主体验；图谱只能在搜索和引用数据稳定后评估。
 
 ## Phase 3：AI 与同步
 
@@ -48,8 +73,9 @@
 - 基于 Markdown / AST 的 AI 命令动作。
 - 标题、列表、引用、代码、时间线等语义块分析。
 - Inline AI：选中句子、段落或 block 后进行总结、扩写、改写、翻译、建关联。
-- 本地优先同步队列。
-- 冲突处理。
+- AI 输出优先回写为结构化 block，且必须经过用户确认或明确 transaction。
+- 本地优先同步队列：local journal -> sync queue -> remote merge。
+- 冲突处理和冲突记录。
 - 可选的 NAS / 自托管后端。
 
 ## Phase 4：跨端一致
@@ -68,4 +94,7 @@
 - 不做多人实时协作。
 - 不过早拆包。
 - 不采用远程优先数据模型。
+- 不做完全 Notion 化 block database。
+- 不在早期做视觉优先的知识图谱主界面。
+- 不让 AI 默认接管编辑器。
 - 不做任何拖慢编辑输入路径的功能。
