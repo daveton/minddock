@@ -13,6 +13,7 @@ import {
   sortNotes,
 } from '../data/repository';
 import type { Note, NoteSummary } from '../data/memory';
+import { serializeMarkdown } from '../import-export/markdown';
 
 const bearSections = [
   {
@@ -89,6 +90,7 @@ const timeline = ['1644 清军入关', '1645 剃发令发布', '1646 江南反�
 
 const LAYOUT_STORAGE_KEY = 'minddock.workspace.layout.v1';
 const LANGUAGE_STORAGE_KEY = 'minddock.workspace.language.v1';
+const MARKDOWN_SYNTAX_STORAGE_KEY = 'minddock.workspace.markdown-syntax.v1';
 const SIDEBAR_DEFAULT = 256;
 const LIST_DEFAULT = 320;
 const SIDEBAR_MIN = 220;
@@ -113,6 +115,14 @@ type SaveState = {
 };
 
 type Language = 'en' | 'zh';
+type InspectorTab = 'stats' | 'outline' | 'ai';
+type TagNode = {
+  id: string;
+  label: string;
+  path: string;
+  count: number;
+  children: TagNode[];
+};
 
 const translations = {
   en: {
@@ -164,6 +174,15 @@ const translations = {
     timeline: 'AI Timeline',
     untitled: 'Untitled',
     workspace: 'Workspace',
+    copiedMarkdown: 'Markdown copied',
+    exportMarkdown: 'Export Markdown',
+    inspectorAi: 'AI',
+    inspectorOutline: 'Outline',
+    inspectorStats: 'Stats',
+    noHeadings: 'No headings yet',
+    markdownSyntax: 'Markdown syntax',
+    allNotes: 'All Notes',
+    untagged: 'Untagged',
   },
   zh: {
     aiCommand: 'AI 命令',
@@ -214,6 +233,15 @@ const translations = {
     timeline: 'AI 时间线',
     untitled: '未命名',
     workspace: '工作区',
+    copiedMarkdown: 'Markdown 已复制',
+    exportMarkdown: '导出 Markdown',
+    inspectorAi: 'AI',
+    inspectorOutline: '大纲',
+    inspectorStats: '统计',
+    noHeadings: '暂无标题',
+    markdownSyntax: 'Markdown 语法',
+    allNotes: '全部笔记',
+    untagged: '无标签',
   },
 } as const;
 
@@ -255,6 +283,12 @@ function loadLanguage(): Language {
   if (typeof window === 'undefined') return 'en';
 
   return window.localStorage.getItem(LANGUAGE_STORAGE_KEY) === 'zh' ? 'zh' : 'en';
+}
+
+function loadMarkdownSyntaxPreference() {
+  if (typeof window === 'undefined') return false;
+
+  return window.localStorage.getItem(MARKDOWN_SYNTAX_STORAGE_KEY) === 'true';
 }
 
 function getNoteTitle(note: Note | NoteSummary | null, t: (key: I18nKey) => string) {
@@ -302,6 +336,95 @@ function collectText(value: unknown): string {
   return [ownText, childText].filter(Boolean).join(' ');
 }
 
+function collectTextNodes(value: unknown, texts: string[] = []) {
+  if (!value || typeof value !== 'object') return texts;
+
+  const node = value as { text?: unknown; content?: unknown };
+  if (typeof node.text === 'string') {
+    texts.push(node.text);
+  }
+
+  if (Array.isArray(node.content)) {
+    node.content.forEach((child) => collectTextNodes(child, texts));
+  }
+
+  return texts;
+}
+
+function getNoteTags(note: Note | NoteSummary | null) {
+  if (!note || !hasNoteContent(note)) return [];
+
+  const tags = new Set<string>();
+  const tagPattern = /(?:^|\s)#([\p{L}\p{N}_/-]+)/gu;
+
+  for (const text of collectTextNodes(note.content)) {
+    for (const match of text.matchAll(tagPattern)) {
+      const tag = match[1]
+        ?.split('/')
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .join('/');
+
+      if (tag) {
+        tags.add(tag);
+      }
+    }
+  }
+
+  return Array.from(tags).sort((a, b) => a.localeCompare(b, 'zh-CN'));
+}
+
+function buildTagTree(notes: Note[]) {
+  const roots: TagNode[] = [];
+  const byPath = new Map<string, TagNode>();
+
+  for (const note of notes) {
+    for (const tag of getNoteTags(note)) {
+      const parts = tag.split('/').filter(Boolean);
+      let parent: TagNode | null = null;
+      let path = '';
+
+      for (const part of parts) {
+        path = path ? `${path}/${part}` : part;
+        let node = byPath.get(path);
+
+        if (!node) {
+          node = {
+            id: path,
+            label: part,
+            path,
+            count: 0,
+            children: [],
+          };
+          byPath.set(path, node);
+
+          if (parent) {
+            parent.children.push(node);
+          } else {
+            roots.push(node);
+          }
+        }
+
+        node.count += 1;
+        parent = node;
+      }
+    }
+  }
+
+  const sortTree = (nodes: TagNode[]) => {
+    nodes.sort((a, b) => a.label.localeCompare(b.label, 'zh-CN'));
+    nodes.forEach((node) => sortTree(node.children));
+  };
+
+  sortTree(roots);
+  return roots;
+}
+
+function noteMatchesTag(note: Note, tagPath: string | null) {
+  if (!tagPath) return true;
+  return getNoteTags(note).some((tag) => tag === tagPath || tag.startsWith(`${tagPath}/`));
+}
+
 function formatNoteTime(updatedAt: number) {
   return new Date(updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
@@ -336,6 +459,35 @@ function getNoteStats(note: Note | null) {
     paragraphs,
     readingMinutes: Math.max(1, Math.ceil(wordCount / 350)),
   };
+}
+
+function getNoteOutline(note: Note | null) {
+  if (!note) return [];
+
+  const outline: Array<{ id: string; level: number; text: string }> = [];
+  collectHeadings(note.content, outline);
+  return outline;
+}
+
+function collectHeadings(value: unknown, outline: Array<{ id: string; level: number; text: string }>) {
+  if (!value || typeof value !== 'object') return;
+
+  const node = value as { type?: unknown; attrs?: Record<string, unknown> | null; content?: unknown };
+  if (node.type === 'heading') {
+    const level = typeof node.attrs?.level === 'number' ? node.attrs.level : 1;
+    const text = collectText(node).trim();
+    if (text) {
+      outline.push({
+        id: typeof node.attrs?.blockId === 'string' ? node.attrs.blockId : `${outline.length}`,
+        level,
+        text,
+      });
+    }
+  }
+
+  if (Array.isArray(node.content)) {
+    node.content.forEach((child) => collectHeadings(child, outline));
+  }
 }
 
 function IconButton({
@@ -395,6 +547,44 @@ function ResizeHandle({ label, resetLabel, onDrag, onReset }: { label: string; r
       onPointerDown={handlePointerDown}
       title={`${label}. ${resetLabel}`}
     />
+  );
+}
+
+function TagTree({
+  nodes,
+  activeTagPath,
+  onSelect,
+  depth = 0,
+}: {
+  nodes: TagNode[];
+  activeTagPath: string | null;
+  onSelect: (path: string) => void;
+  depth?: number;
+}) {
+  return (
+    <>
+      {nodes.map((node) => (
+        <div className="aw-tag-tree-node" key={node.path}>
+          <button
+            className={activeTagPath === node.path ? 'is-active' : ''}
+            onClick={() => onSelect(node.path)}
+            style={{ '--tag-depth': depth } as React.CSSProperties}
+          >
+            <span className="aw-tree-icon">{node.children.length > 0 ? '▾' : '#'}</span>
+            <span>{node.label}</span>
+            <small>{node.count}</small>
+          </button>
+          {node.children.length > 0 ? (
+            <TagTree
+              nodes={node.children}
+              activeTagPath={activeTagPath}
+              onSelect={onSelect}
+              depth={depth + 1}
+            />
+          ) : null}
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -472,6 +662,8 @@ function MobileWorkspace({ language, setLanguage, t }: { language: Language; set
 
 function DesktopWorkspace({ language, setLanguage, t }: { language: Language; setLanguage: Dispatch<SetStateAction<Language>>; t: (key: I18nKey) => string }) {
   const [layout, setLayout] = useState<WorkspaceLayout>(loadLayout);
+  const [showMarkdownSyntax, setShowMarkdownSyntax] = useState(loadMarkdownSyntaxPreference);
+  const [activeTagPath, setActiveTagPath] = useState<string | null>('study/历史/清朝');
   const editorHostRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<Editor | null>(null);
   const activeNoteIdRef = useRef<string | null>(null);
@@ -479,6 +671,7 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
   const [notes, setNotes] = useState<Note[]>([]);
   const [activeNote, setActiveNote] = useState<Note | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [inspectorTab, setInspectorTab] = useState<InspectorTab>('stats');
   const [saveState, setSaveState] = useState<SaveState>({
     labelKey: 'loading',
     tone: 'live',
@@ -488,6 +681,10 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
   useEffect(() => {
     window.localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(layout));
   }, [layout]);
+
+  useEffect(() => {
+    window.localStorage.setItem(MARKDOWN_SYNTAX_STORAGE_KEY, String(showMarkdownSyntax));
+  }, [showMarkdownSyntax]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -721,11 +918,33 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
     }
   };
 
+  const handleExportMarkdown = async () => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const markdown = serializeMarkdown(editor.getJSON());
+    await navigator.clipboard.writeText(markdown);
+    setSaveState({ labelKey: 'copiedMarkdown', tone: 'idle', detailKey: null });
+  };
+
   const activeTitle = getNoteTitle(activeNote, t);
   const activeStats = getNoteStats(activeNote);
+  const activeOutline = getNoteOutline(activeNote);
+  const tagTree = useMemo(() => buildTagTree(notes), [notes]);
+  const hasActiveTag = useMemo(() => {
+    if (!activeTagPath) return true;
+    return notes.some((note) => noteMatchesTag(note, activeTagPath));
+  }, [activeTagPath, notes]);
+  const effectiveActiveTagPath = hasActiveTag ? activeTagPath : null;
+  const filteredNotes = useMemo(
+    () => notes.filter((note) => noteMatchesTag(note, effectiveActiveTagPath)),
+    [effectiveActiveTagPath, notes],
+  );
+  const activeTags = getNoteTags(activeNote);
+  const listTitle = effectiveActiveTagPath ?? t('allNotes');
 
   return (
-    <div className={`aw-desktop ${layout.contextOpen ? 'has-context' : ''} ${layout.focusMode ? 'is-focus-mode' : ''}`} style={workspaceStyle}>
+    <div className={`aw-desktop ${layout.contextOpen ? 'has-context' : ''} ${layout.focusMode ? 'is-focus-mode' : ''} ${showMarkdownSyntax ? 'show-markdown-syntax' : ''}`} style={workspaceStyle}>
       <aside className="aw-sidebar">
         <div className="aw-sidebar__brand">
           <div className="aw-window-dots" aria-hidden="true">
@@ -737,6 +956,28 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
         </div>
 
         <nav className="aw-space-list" aria-label={t('workspace')}>
+          <section className="aw-tree-section">
+            <button
+              className={`aw-tree-heading ${activeTagPath === null ? 'is-active' : ''}`}
+              onClick={() => setActiveTagPath(null)}
+            >
+              <span>#</span>
+              {t('allNotes')}
+              <small>{notes.length}</small>
+            </button>
+            {tagTree.length > 0 ? (
+              <TagTree
+                nodes={tagTree}
+                activeTagPath={effectiveActiveTagPath}
+                onSelect={setActiveTagPath}
+              />
+            ) : (
+              <button className={activeTagPath === null ? 'is-active' : ''} onClick={() => setActiveTagPath(null)}>
+                <span className="aw-tree-icon">#</span>
+                {t('untagged')}
+              </button>
+            )}
+          </section>
           {bearSections.map((section) => (
             <section className="aw-tree-section" key={section.id}>
               <button className="aw-tree-heading">
@@ -766,13 +1007,13 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
       <section className="aw-note-list">
         <header className="aw-note-list__header">
           <div>
-            <strong>清朝</strong>
-            <span>{language === 'zh' ? `${notes.length} ${t('localNotes')}` : `${notes.length} ${t('localNotes')}`}</span>
+            <strong>{listTitle}</strong>
+            <span>{language === 'zh' ? `${filteredNotes.length} ${t('localNotes')}` : `${filteredNotes.length} ${t('localNotes')}`}</span>
           </div>
           <IconButton label={t('newNote')} onClick={() => { void handleCreateNote(); }}>+</IconButton>
         </header>
         <div className="aw-note-list__items">
-          {notes.map((note) => (
+          {filteredNotes.map((note) => (
             <button
               className={note.id === activeNote?.id ? 'is-active' : ''}
               key={note.id}
@@ -807,6 +1048,14 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
             <button aria-label="Italic"><em>I</em></button>
             <button aria-label="Underline"><u>U</u></button>
             <button
+              aria-label={t('markdownSyntax')}
+              aria-pressed={showMarkdownSyntax}
+              className={showMarkdownSyntax ? 'is-active' : ''}
+              onClick={() => setShowMarkdownSyntax((current) => !current)}
+            >
+              #
+            </button>
+            <button
               aria-label="Note statistics"
               aria-expanded={inspectorOpen}
               className={inspectorOpen ? 'is-active' : ''}
@@ -827,6 +1076,7 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
             >
               ⛶
             </button>
+            <button aria-label={t('exportMarkdown')} onClick={() => { void handleExportMarkdown(); }}>⇩</button>
             <button aria-label="More">⋮</button>
           </div>
         </div>
@@ -834,47 +1084,89 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
           <aside className="aw-stat-popover">
             <h2>统计</h2>
             <div className="aw-stat-tabs">
-              <button className="is-active">▥</button>
-              <button>☷</button>
-              <button>↩</button>
+              <button
+                aria-label={t('inspectorStats')}
+                className={inspectorTab === 'stats' ? 'is-active' : ''}
+                onClick={() => setInspectorTab('stats')}
+              >
+                ▥
+              </button>
+              <button
+                aria-label={t('inspectorOutline')}
+                className={inspectorTab === 'outline' ? 'is-active' : ''}
+                onClick={() => setInspectorTab('outline')}
+              >
+                ☷
+              </button>
+              <button
+                aria-label={t('inspectorAi')}
+                className={inspectorTab === 'ai' ? 'is-active' : ''}
+                onClick={() => setInspectorTab('ai')}
+              >
+                ✦
+              </button>
             </div>
-            <div className="aw-stat-grid">
-              <section>
-                <strong>{activeStats.words.toLocaleString()}</strong>
-                <span>字数</span>
-              </section>
-              <section>
-                <strong>{activeStats.characters.toLocaleString()}</strong>
-                <span>字符</span>
-              </section>
-              <section>
-                <strong>{activeStats.paragraphs}</strong>
-                <span>段落</span>
-              </section>
-              <section>
-                <strong>{activeStats.readingMinutes}分钟</strong>
-                <span>阅读时间</span>
-              </section>
-            </div>
-            <div className="aw-stat-dates">
-              <div>
-                <strong>{activeNote ? new Date(activeNote.updatedAt).toLocaleString('zh-CN') : '-'}</strong>
-                <span>编辑日期</span>
+            {inspectorTab === 'stats' ? (
+              <>
+                <div className="aw-stat-grid">
+                  <section>
+                    <strong>{activeStats.words.toLocaleString()}</strong>
+                    <span>字数</span>
+                  </section>
+                  <section>
+                    <strong>{activeStats.characters.toLocaleString()}</strong>
+                    <span>字符</span>
+                  </section>
+                  <section>
+                    <strong>{activeStats.paragraphs}</strong>
+                    <span>段落</span>
+                  </section>
+                  <section>
+                    <strong>{activeStats.readingMinutes}分钟</strong>
+                    <span>阅读时间</span>
+                  </section>
+                </div>
+                <div className="aw-stat-dates">
+                  <div>
+                    <strong>{activeNote ? new Date(activeNote.updatedAt).toLocaleString('zh-CN') : '-'}</strong>
+                    <span>编辑日期</span>
+                  </div>
+                  <div>
+                    <strong>{activeNote ? new Date(activeNote.updatedAt).toLocaleString('zh-CN') : '-'}</strong>
+                    <span>创建日期</span>
+                  </div>
+                </div>
+              </>
+            ) : null}
+            {inspectorTab === 'outline' ? (
+              <div className="aw-outline-list">
+                {activeOutline.length > 0 ? activeOutline.map((item) => (
+                  <button style={{ paddingLeft: `${(item.level - 1) * 14}px` }} key={item.id}>
+                    {item.text}
+                  </button>
+                )) : <p>{t('noHeadings')}</p>}
               </div>
-              <div>
-                <strong>{activeNote ? new Date(activeNote.updatedAt).toLocaleString('zh-CN') : '-'}</strong>
-                <span>创建日期</span>
+            ) : null}
+            {inspectorTab === 'ai' ? (
+              <div className="aw-ai-panel">
+                <button>{t('aiSummary')}</button>
+                <button>{t('timeline')}</button>
+                <button>{t('relatedNotes')}</button>
               </div>
-            </div>
+            ) : null}
           </aside>
         ) : null}
         <article className="aw-editor">
           <div className="aw-editor-meta">
             <div>
-              <div className="aw-tag-row">
-                <span>#study/历史/清朝</span>
-              </div>
               <h1>{activeTitle}</h1>
+              <div className="aw-tag-row">
+                {(activeTags.length > 0 ? activeTags : ['study/历史/清朝']).map((tag) => (
+                  <button key={tag} onClick={() => setActiveTagPath(tag)}>
+                    #{tag}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="aw-save-stack">
               <span className="aw-status-pill" data-tone={saveState.tone}>{t(saveState.labelKey)}</span>
@@ -889,6 +1181,17 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
           ) : null}
 
           <div ref={editorHostRef} className="aw-editor-host" />
+          <div className="aw-floating-toolbar" aria-hidden="true">
+            <span>H⌄</span>
+            <span>☑</span>
+            <span>≡⌄</span>
+            <strong>B</strong>
+            <em>I</em>
+            <span>⌫</span>
+            <span>@</span>
+            <span>▦</span>
+            <span>⋮</span>
+          </div>
         </article>
       </main>
 
