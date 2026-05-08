@@ -508,17 +508,137 @@ button {
   }
 
   .aw-breadcrumb {
-    margin-bottom: 30px;
+    margin-bottom: 8px;
     color: var(--aw-faint-ink);
     font-size: 14px;
   }
 
   .aw-editor h1 {
-    max-width: 13ch;
-    margin: 0 0 26px;
-    font-size: 44px;
+    margin: 0;
+    font-size: 28px;
     line-height: 1.13;
     letter-spacing: 0;
+  }
+
+  .aw-editor-meta {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    border-bottom: 1px solid var(--aw-line);
+    padding-bottom: 22px;
+  }
+
+  .aw-editor-meta p {
+    max-width: 58ch;
+    margin: 10px 0 0;
+    color: var(--aw-soft-ink);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .aw-save-stack {
+    display: grid;
+    justify-items: end;
+    gap: 8px;
+    flex: 0 0 auto;
+  }
+
+  .aw-save-stack small {
+    color: var(--aw-faint-ink);
+    font-size: 12px;
+  }
+
+  .aw-status-pill {
+    border: 1px solid var(--aw-line);
+    border-radius: 999px;
+    background: white;
+    color: var(--aw-soft-ink);
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+
+  .aw-status-pill[data-tone='live'] {
+    border-color: rgba(49, 95, 140, 0.2);
+    background: rgba(49, 95, 140, 0.08);
+    color: var(--aw-blue);
+  }
+
+  .aw-status-pill[data-tone='error'] {
+    border-color: rgba(167, 95, 59, 0.28);
+    background: rgba(167, 95, 59, 0.1);
+    color: var(--aw-clay);
+  }
+
+  .aw-inline-alert {
+    margin-top: 18px;
+    border: 1px solid rgba(167, 95, 59, 0.24);
+    border-radius: 8px;
+    background: rgba(167, 95, 59, 0.08);
+    color: var(--aw-clay);
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .aw-editor-host {
+    margin-top: 28px;
+  }
+
+  .minddock-editor {
+    min-height: 58vh;
+    outline: 0;
+    color: #292b27;
+    font-size: 17px;
+    line-height: 1.95;
+  }
+
+  .minddock-editor > *:first-child {
+    margin-top: 0;
+  }
+
+  .minddock-editor p,
+  .minddock-editor ul,
+  .minddock-editor ol,
+  .minddock-editor blockquote,
+  .minddock-editor pre {
+    margin: 0 0 24px;
+  }
+
+  .minddock-editor h1,
+  .minddock-editor h2,
+  .minddock-editor h3 {
+    margin: 42px 0 16px;
+    line-height: 1.25;
+    letter-spacing: 0;
+  }
+
+  .minddock-editor h1 {
+    font-size: 36px;
+  }
+
+  .minddock-editor h2 {
+    font-size: 28px;
+  }
+
+  .minddock-editor h3 {
+    font-size: 22px;
+  }
+
+  .minddock-editor blockquote {
+    border-left: 3px solid var(--aw-green);
+    background: #f0f0eb;
+    padding: 14px 18px;
+  }
+
+  .minddock-editor pre {
+    overflow: auto;
+    border-radius: 8px;
+    background: #1f211f;
+    color: white;
+    padding: 16px;
+    font-size: 14px;
+    line-height: 1.7;
   }
 
   .aw-tag-row {

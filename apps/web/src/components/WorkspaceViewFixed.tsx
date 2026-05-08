@@ -1,11 +1,24 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { Editor } from '@tiptap/core';
+import { bindEditorEvents } from '../editor/events';
+import { createEditor } from '../editor/setup';
+import {
+  createNote,
+  ensureDefaultNote,
+  listNotes,
+  loadNote,
+  saveNoteById,
+  setCurrentNote,
+  sortNotes,
+} from '../data/repository';
+import type { Note, NoteSummary } from '../data/memory';
 
-const notes = [
+const spaces = ['Today', 'Research', 'Writing', 'History', 'AI', 'Design', 'Psychology'];
+const mobileNotes = [
   {
     title: '剃发易服背后的心理统治',
     desc: '满洲统治者如何利用文化与身份重塑进行长期心理控制',
     time: '2h',
-    active: true,
   },
   {
     title: '大清兴亡录：296 年帝国周期',
@@ -17,14 +30,7 @@ const notes = [
     desc: '信息操控如何击溃明朝官僚系统',
     time: 'May 4',
   },
-  {
-    title: '红夷大炮与宁远之战',
-    desc: '火器技术如何改变辽东战略格局',
-    time: 'Apr 29',
-  },
 ];
-
-const spaces = ['Today', 'Research', 'Writing', 'History', 'AI', 'Design', 'Psychology'];
 const chips = ['历史', 'AI', '设计', '心理学', '写作', '商业'];
 const relatedNotes = ['八旗制度与组织控制', '明末文官系统为何崩溃', '满清如何重塑意识形态'];
 const timeline = ['1644 清军入关', '1645 剃发令发布', '1646 江南反抗加剧', '1650 政策全面推行'];
@@ -43,6 +49,14 @@ type WorkspaceLayout = {
   contextOpen: boolean;
   focusMode: boolean;
   theme: 'light';
+};
+
+type SaveTone = 'idle' | 'live' | 'error';
+
+type SaveState = {
+  label: string;
+  tone: SaveTone;
+  detail: string | null;
 };
 
 const defaultLayout: WorkspaceLayout = {
@@ -75,6 +89,45 @@ function loadLayout(): WorkspaceLayout {
   } catch {
     return defaultLayout;
   }
+}
+
+function getNoteTitle(note: Note | NoteSummary | null) {
+  if (!note) return 'Untitled';
+
+  const firstText = hasNoteContent(note) ? findFirstText(note.content) : '';
+  return firstText || note.id;
+}
+
+function getNoteExcerpt(note: Note | NoteSummary | null) {
+  if (!note || !hasNoteContent(note)) return 'Local note';
+
+  return findFirstText(note.content, 120) || 'Empty local note';
+}
+
+function hasNoteContent(note: Note | NoteSummary): note is Note {
+  return 'content' in note;
+}
+
+function findFirstText(value: unknown, limit = 56): string {
+  if (!value || typeof value !== 'object') return '';
+
+  const node = value as { text?: unknown; content?: unknown };
+  if (typeof node.text === 'string' && node.text.trim()) {
+    return node.text.trim().slice(0, limit);
+  }
+
+  if (Array.isArray(node.content)) {
+    for (const child of node.content) {
+      const text = findFirstText(child, limit);
+      if (text) return text;
+    }
+  }
+
+  return '';
+}
+
+function formatNoteTime(updatedAt: number) {
+  return new Date(updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 function IconButton({
@@ -173,7 +226,7 @@ function MobileWorkspace() {
         </nav>
 
         <section className="aw-feed">
-          {notes.slice(0, 3).map((note) => (
+          {mobileNotes.map((note) => (
             <article className="aw-note-card" key={note.title}>
               <div className="aw-note-card__top">
                 <h2>{note.title}</h2>
@@ -210,6 +263,17 @@ function MobileWorkspace() {
 
 function DesktopWorkspace() {
   const [layout, setLayout] = useState<WorkspaceLayout>(loadLayout);
+  const editorHostRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<Editor | null>(null);
+  const activeNoteIdRef = useRef<string | null>(null);
+  const applyingRemoteContentRef = useRef(false);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [activeNote, setActiveNote] = useState<Note | null>(null);
+  const [saveState, setSaveState] = useState<SaveState>({
+    label: 'Loading',
+    tone: 'live',
+    detail: null,
+  });
 
   useEffect(() => {
     window.localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(layout));
@@ -234,6 +298,81 @@ function DesktopWorkspace() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const refreshNotes = useCallback(async (nextActiveId?: string) => {
+    const allNotes = sortNotes(await listNotes()) as Note[];
+    setNotes(allNotes);
+
+    if (nextActiveId) {
+      const nextActive = allNotes.find((note) => note.id === nextActiveId) ?? null;
+      setActiveNote(nextActive);
+    }
+  }, []);
+
+  const setEditorContent = useCallback((editor: Editor, note: Note) => {
+    applyingRemoteContentRef.current = true;
+    editor.commands.setContent(note.content);
+    queueMicrotask(() => {
+      applyingRemoteContentRef.current = false;
+    });
+  }, []);
+
+  const flushActiveNote = useCallback(async () => {
+    const editor = editorRef.current;
+    const noteId = activeNoteIdRef.current;
+    if (!editor || !noteId) return;
+
+    const result = await saveNoteById(noteId, editor.getJSON());
+    if (!result.success) {
+      throw new Error(result.error?.message ?? 'Save failed');
+    }
+
+    await refreshNotes(noteId);
+  }, [refreshNotes]);
+
+  useEffect(() => {
+    if (!editorHostRef.current) return;
+
+    let disposed = false;
+    const editor = createEditor(editorHostRef.current);
+    editorRef.current = editor;
+
+    const unbind = bindEditorEvents(editor, {
+      shouldSave: () => !applyingRemoteContentRef.current,
+      onSaving: () => setSaveState({ label: 'Saving locally', tone: 'live', detail: null }),
+      onSaved: async () => {
+        setSaveState({ label: 'Saved', tone: 'idle', detail: null });
+        await refreshNotes(activeNoteIdRef.current ?? undefined);
+      },
+      onError: () =>
+        setSaveState({
+          label: 'Save failed',
+          tone: 'error',
+          detail: 'Latest changes are still in memory, but the last local write did not complete.',
+        }),
+    });
+
+    const init = async () => {
+      const note = await ensureDefaultNote();
+      if (disposed) return;
+
+      setCurrentNote(note.id);
+      activeNoteIdRef.current = note.id;
+      setActiveNote(note);
+      setEditorContent(editor, note);
+      setSaveState({ label: 'Saved', tone: 'idle', detail: null });
+      await refreshNotes(note.id);
+    };
+
+    void init();
+
+    return () => {
+      disposed = true;
+      unbind();
+      editor.destroy();
+      editorRef.current = null;
+    };
+  }, [refreshNotes, setEditorContent]);
+
   const resizeSidebar = useCallback((delta: number) => {
     setLayout((current) => ({
       ...current,
@@ -257,6 +396,70 @@ function DesktopWorkspace() {
       }) as React.CSSProperties,
     [layout],
   );
+
+  const handleCreateNote = async () => {
+    try {
+      setSaveState({ label: 'Saving before new note', tone: 'live', detail: null });
+      await flushActiveNote();
+
+      const note = await createNote();
+      setCurrentNote(note.id);
+      activeNoteIdRef.current = note.id;
+      setActiveNote(note);
+
+      if (editorRef.current) {
+        setEditorContent(editorRef.current, note);
+      }
+
+      setSaveState({ label: 'Saved', tone: 'idle', detail: null });
+      await refreshNotes(note.id);
+    } catch {
+      setSaveState({
+        label: 'Save failed',
+        tone: 'error',
+        detail: 'The current note could not be written locally before creating a new note.',
+      });
+    }
+  };
+
+  const handleSwitchNote = async (noteId: string) => {
+    if (noteId === activeNoteIdRef.current) return;
+
+    try {
+      setSaveState({ label: 'Saving before switch', tone: 'live', detail: null });
+      await flushActiveNote();
+
+      const nextNote = await loadNote(noteId);
+      if (!nextNote) {
+        setSaveState({
+          label: 'Load failed',
+          tone: 'error',
+          detail: 'The selected note could not be loaded from local storage.',
+        });
+        return;
+      }
+
+      setCurrentNote(noteId);
+      activeNoteIdRef.current = noteId;
+      setActiveNote(nextNote);
+
+      if (editorRef.current) {
+        setEditorContent(editorRef.current, nextNote);
+      }
+
+      setSaveState({ label: 'Saved', tone: 'idle', detail: null });
+      await refreshNotes(noteId);
+    } catch {
+      setSaveState({
+        label: 'Save failed',
+        tone: 'error',
+        detail: 'Switch was stopped because the current note could not be written locally.',
+      });
+    }
+  };
+
+  const activeTitle = getNoteTitle(activeNote);
+  const activeExcerpt = getNoteExcerpt(activeNote);
 
   return (
     <div className={`aw-desktop ${layout.contextOpen ? 'has-context' : ''} ${layout.focusMode ? 'is-focus-mode' : ''}`} style={workspaceStyle}>
@@ -291,16 +494,20 @@ function DesktopWorkspace() {
         <header>
           <div>
             <strong>History</strong>
-            <span>128 notes</span>
+            <span>{notes.length} local notes</span>
           </div>
-          <IconButton label="新建笔记">+</IconButton>
+          <IconButton label="新建笔记" onClick={() => { void handleCreateNote(); }}>+</IconButton>
         </header>
         <div className="aw-note-list__items">
           {notes.map((note) => (
-            <button className={note.active ? 'is-active' : ''} key={note.title}>
-              <strong>{note.title}</strong>
-              <span>{note.desc}</span>
-              <small>{note.time}</small>
+            <button
+              className={note.id === activeNote?.id ? 'is-active' : ''}
+              key={note.id}
+              onClick={() => { void handleSwitchNote(note.id); }}
+            >
+              <strong>{getNoteTitle(note)}</strong>
+              <span>{getNoteExcerpt(note)}</span>
+              <small>{formatNoteTime(note.updatedAt)}</small>
             </button>
           ))}
         </div>
@@ -329,47 +536,25 @@ function DesktopWorkspace() {
           </IconButton>
         </div>
         <article className="aw-editor">
-          <div className="aw-breadcrumb">History / Qing Dynasty</div>
-          <h1>剃发易服背后的心理统治：满洲如何重塑汉人的身份认同</h1>
-
-          <div className="aw-tag-row">
-            <span>Qing History</span>
-            <span>Psychological Warfare</span>
+          <div className="aw-editor-meta">
+            <div>
+              <div className="aw-breadcrumb">History / Local-first</div>
+              <h1>{activeTitle}</h1>
+              <p>{activeExcerpt}</p>
+            </div>
+            <div className="aw-save-stack">
+              <span className="aw-status-pill" data-tone={saveState.tone}>{saveState.label}</span>
+              {activeNote ? <small>{formatNoteTime(activeNote.updatedAt)}</small> : null}
+            </div>
           </div>
 
-          <p>
-            清初推行的“留发不留头”政策，本质上并不仅仅是服饰与发型的变化，而是一场系统性的身份控制实验。
-            它的真正目标，是通过对身体外观的强制干预，逐渐瓦解传统士大夫的文化认同。
-          </p>
+          {saveState.detail ? (
+            <div className="aw-inline-alert" role="status" aria-live="polite">
+              {saveState.detail}
+            </div>
+          ) : null}
 
-          <aside className="aw-inline-summary">
-            <span>AI Summary</span>
-            <p>满洲统治者通过外在身份符号改造、文化羞辱与历史记忆切断，完成了长期心理统治。</p>
-          </aside>
-
-          <p>
-            当所有人都被迫以相同的方式呈现自身时，个体会逐渐失去对传统身份的坚持。
-            这种“视觉统一”会进一步塑造社会认知，并最终影响集体记忆。
-          </p>
-
-          <h2>三层心理控制机制</h2>
-          <div className="aw-mechanisms">
-            {[
-              ['身体改造', '通过外观控制建立服从性测试'],
-              ['文化羞辱', '摧毁传统士大夫的道德优越感'],
-              ['历史重构', '重塑社会叙事与集体记忆'],
-            ].map(([title, desc]) => (
-              <section key={title}>
-                <strong>{title}</strong>
-                <span>{desc}</span>
-              </section>
-            ))}
-          </div>
-
-          <p>
-            从 UX 的角度看，这其实是一种极其强力的“默认状态设计”。
-            当用户长期暴露于同一种系统规则下，人会逐渐停止反抗，并将其视为理所当然。
-          </p>
+          <div ref={editorHostRef} className="aw-editor-host" />
         </article>
       </main>
 

@@ -7,6 +7,7 @@ type BindOptions = {
   onSaving?: () => void
   onSaved?: () => void
   onError?: () => void
+  shouldSave?: () => boolean
 }
 
 export function bindEditorEvents(editor: Editor, options: BindOptions = {}) {
@@ -19,6 +20,10 @@ export function bindEditorEvents(editor: Editor, options: BindOptions = {}) {
   }
 
   const debouncedSave = debounce(async () => {
+    if (options.shouldSave && !options.shouldSave()) {
+      return
+    }
+
     try {
       options.onSaving?.()
       const content = editor.getJSON()
