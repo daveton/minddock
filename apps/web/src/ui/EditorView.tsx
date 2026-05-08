@@ -11,6 +11,12 @@ import {
   setCurrentNote,
 } from '../data/repository'
 import type { NoteSummary } from '../data/memory'
+import {
+  exportInputLatencySamples,
+  getInputLatencyStats,
+  markKeydown,
+  resetInputLatencySamples,
+} from '../perf/inputLatency'
 
 export default function EditorView() {
   const editorRef = useRef<Editor | null>(null)
@@ -99,16 +105,46 @@ export default function EditorView() {
     void init()
     syncNetworkState()
 
+    const trackInputKeydown = (event: KeyboardEvent) => {
+      const target = event.target as Element | null
+      if (!target || !containerRef.current?.contains(target)) {
+        return
+      }
+
+      if (event.metaKey || event.ctrlKey || event.altKey) {
+        return
+      }
+
+      if (event.key.length !== 1 && event.key !== 'Backspace' && event.key !== 'Enter') {
+        return
+      }
+
+      markKeydown()
+    }
+
     window.addEventListener('online', syncNetworkState)
     window.addEventListener('offline', syncNetworkState)
+    window.addEventListener('keydown', trackInputKeydown, { capture: true })
 
     return () => {
       window.removeEventListener('online', syncNetworkState)
       window.removeEventListener('offline', syncNetworkState)
+      window.removeEventListener('keydown', trackInputKeydown, true)
       unbind()
       editor.destroy()
     }
   }, [])
+
+  const handlePrintInputPerf = () => {
+    const stats = getInputLatencyStats()
+    console.table(stats)
+    console.log('input_latency_samples', exportInputLatencySamples())
+  }
+
+  const handleResetInputPerf = () => {
+    resetInputLatencySamples()
+    console.info('input_latency_samples reset')
+  }
 
   const flushActiveNote = async () => {
     const editor = editorRef.current
@@ -278,6 +314,12 @@ export default function EditorView() {
         <section className="editor-card">
           <div className="note-meta">
             <p className="note-title">{activeNoteId}</p>
+            <button type="button" className="note-action" onClick={handlePrintInputPerf}>
+              Print input perf
+            </button>
+            <button type="button" className="note-action" onClick={handleResetInputPerf}>
+              Reset input perf
+            </button>
             <p ref={updatedAtRef} className="note-updated">
               Last local write --
             </p>
