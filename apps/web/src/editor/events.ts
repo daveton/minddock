@@ -1,6 +1,6 @@
 import type { Editor } from '@tiptap/core'
 import { saveCurrentNote } from '../data/repository'
-import { markEditorUpdate } from '../perf/inputLatency'
+import { markKeydown, markEditorUpdate } from '../perf/inputLatency'
 import { debounce } from '../utils/debounce'
 
 type BindOptions = {
@@ -10,6 +10,10 @@ type BindOptions = {
 }
 
 export function bindEditorEvents(editor: Editor, options: BindOptions = {}) {
+  const trackInputStart = () => {
+    markKeydown()
+  }
+
   const trackInputUpdate = () => {
     markEditorUpdate()
   }
@@ -25,10 +29,13 @@ export function bindEditorEvents(editor: Editor, options: BindOptions = {}) {
     }
   }, 300)
 
+  // Use 'create' event which fires when content changes start
+  editor.on('create', trackInputStart)
   editor.on('update', trackInputUpdate)
   editor.on('update', debouncedSave)
 
   return () => {
+    editor.off('create', trackInputStart)
     editor.off('update', trackInputUpdate)
     editor.off('update', debouncedSave)
   }
