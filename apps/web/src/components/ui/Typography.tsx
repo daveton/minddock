@@ -15,14 +15,14 @@ export const Typography: React.FC<TypographyProps> = ({
   weight = 'normal',
 }) => {
   const variantClasses = {
-    display: 'text-[var(--font-display)] leading-[var(--line-height-tight)] font-bold tracking-[-0.03em]',
-    h1: 'text-[var(--font-h1)] leading-[var(--line-height-tight)] font-bold tracking-[-0.02em]',
-    h2: 'text-[var(--font-h2)] leading-[var(--line-height-normal)] font-semibold tracking-[-0.02em]',
-    h3: 'text-[var(--font-h3)] leading-[var(--line-height-normal)] font-semibold',
-    body: 'text-[var(--font-body)] leading-[var(--line-height-loose)] font-normal',
-    small: 'text-[var(--font-small)] leading-[var(--line-height-normal)] font-normal',
-    caption: 'text-[var(--font-caption)] leading-[var(--line-height-normal)] font-normal',
-    meta: 'text-[var(--font-meta)] leading-[var(--line-height-normal)] font-normal',
+    display: 'text-[var(--font-display)] leading-[var(--line-height-tight)] font-bold tracking-[-0.03em] font-family-[var(--font-family-base)]',
+    h1: 'text-[var(--font-h1)] leading-[var(--line-height-tight)] font-bold tracking-[-0.02em] font-family-[var(--font-family-base)]',
+    h2: 'text-[var(--font-h2)] leading-[var(--line-height-normal)] font-semibold tracking-[-0.02em] font-family-[var(--font-family-base)]',
+    h3: 'text-[var(--font-h3)] leading-[var(--line-height-normal)] font-semibold font-family-[var(--font-family-base)]',
+    body: 'text-[var(--font-body)] leading-[var(--line-height-loose)] font-normal font-family-[var(--font-family-base)]',
+    small: 'text-[var(--font-small)] leading-[var(--line-height-normal)] font-normal font-family-[var(--font-family-base)]',
+    caption: 'text-[var(--font-caption)] leading-[var(--line-height-normal)] font-normal font-family-[var(--font-family-base)]',
+    meta: 'text-[var(--font-meta)] leading-[var(--line-height-normal)] font-normal font-family-[var(--font-family-base)]',
   };
 
   const weightClasses = {

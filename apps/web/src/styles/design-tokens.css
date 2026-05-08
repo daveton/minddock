@@ -18,17 +18,28 @@
   --bg-primary: #F7F7F5;
   --bg-secondary: #F3F3F1;
   --bg-tertiary: #FBFBFA;
+  --bg-hover: #EFEFEA;
+  --bg-active: #E8E7E3;
   --text-primary: #1F1F1F;
   --text-secondary: #2A2A2A;
   --text-tertiary: #666;
   --text-quaternary: #777;
   --text-disabled: #AAA;
+  --text-link: #4C7DFF;
   --border-subtle: rgba(0, 0, 0, 0.05);
   --border-medium: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.12);
   --accent-primary: #4C7DFF;
+  --accent-secondary: #6B8EFF;
   --accent-ai: #111;
+  --accent-ai-hover: #333;
   --surface-white: #FFFFFF;
   --surface-cream: #F1F0EC;
+  --surface-elevated: #FFFFFF;
+  --success: #10B981;
+  --warning: #F59E0B;
+  --error: #EF4444;
+  --info: #3B82F6;
 
   /* 排版系统 - 出版级 */
   --font-display: 42px;
@@ -50,6 +61,12 @@
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
+  
+  /* 字体系统 - 中英文字体 */
+  --font-family-zh: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-family-en: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  --font-family-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  --font-family-base: var(--font-family-zh), var(--font-family-en);
 
   /* 圆角系统 - Bear 级克制 */
   --radius-sm: 6px;
@@ -68,11 +85,21 @@
   --ease-default: cubic-bezier(0.2, 0, 0, 1);
   --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
 
-  /* 布局系统 */
+  /* 布局系统 - Bear 级克制 */
   --sidebar-width: 240px;
   --notelist-width: 320px;
   --contextpanel-width: 320px;
-  --editor-max-width: 760px;
+  --editor-max-width: 720px; /* 680~760px 范围 */
   --editor-padding-x: 80px;
   --editor-padding-y: 96px;
+  
+  /* UI 噪音控制 */
+  --card-shadow: none; /* 移除卡片阴影 */
+  --button-shadow: none; /* 移除按钮阴影 */
+  --hover-shadow: none; /* 移除 hover 阴影 */
+  --border-width: 1px; /* 最小边框宽度 */
+  --border-radius-sm: 6px;
+  --border-radius-md: 10px;
+  --border-radius-lg: 14px;
+  --border-radius-xl: 20px;
 }

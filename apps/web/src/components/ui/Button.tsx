@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface ButtonProps {
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'subtle';
   size?: 'sm' | 'md' | 'lg';
   children: React.ReactNode;
   onClick?: () => void;
@@ -17,12 +17,13 @@ export const Button: React.FC<ButtonProps> = ({
   className = '',
   disabled = false,
 }) => {
-  const baseClasses = 'inline-flex items-center justify-center rounded-xl transition-all duration-[var(--duration-normal)] cursor-pointer font-medium';
+  const baseClasses = 'inline-flex items-center justify-center rounded-lg transition-all duration-[var(--duration-normal)] cursor-pointer font-medium';
   
   const variantClasses = {
     primary: 'bg-[var(--accent-primary)] text-white hover:bg-opacity-90',
     secondary: 'bg-[var(--surface-white)] border border-[var(--border-subtle)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]',
     ghost: 'text-[var(--text-secondary)] hover:bg-[var(--border-subtle)]',
+    subtle: 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-subtle)]',
   };
 
   const sizeClasses = {
@@ -31,7 +32,7 @@ export const Button: React.FC<ButtonProps> = ({
     lg: 'h-12 px-6 text-base',
   };
 
-  const disabledClasses = disabled ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02]';
+  const disabledClasses = disabled ? 'opacity-50 cursor-not-allowed' : '';
 
   return (
     <button
