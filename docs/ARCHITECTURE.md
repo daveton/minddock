@@ -4,6 +4,15 @@
 
 MindDock 的核心不是普通 textarea，而是「块级 Hybrid Markdown 编辑器」。
 
+产品工作流目标：
+
+```text
+结构化输入
+  -> 安静阅读
+  -> AI 理解
+  -> 跨端一致
+```
+
 目标形态：
 
 ```text
@@ -50,6 +59,23 @@ Markdown 解析和序列化可以接入 `remark` 或 `markdown-it`，但不能�
 2. JSON AST / ProseMirror JSON：结构表达更强，适合复杂块级能力。
 
 短期可以先保留 TipTap JSON，后续补 Markdown serializer，确保数据能稳定导出为 Markdown。
+
+## AI Native 块模型
+
+长期能力围绕 block，而不是全文字符串：
+
+```text
+Document
+  -> Blocks
+    -> Paragraph
+    -> Heading
+    -> Quote
+    -> Timeline
+    -> AI Summary
+    -> References
+```
+
+AI 功能应优先基于 AST / Blocks 做 Inline AI，例如总结、扩写、时间线、建卡片、建关联、改写和翻译。聊天框可以存在，但不能成为唯一 AI 入口。
 
 ## 当前产品表面
 
