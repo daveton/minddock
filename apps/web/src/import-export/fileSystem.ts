@@ -4,6 +4,7 @@ type SaveMarkdownResult = {
 }
 
 const markdownHandles = new Map<string, FileSystemFileHandle>()
+const markdownDirectoryHandles = new Map<string, FileSystemFileHandle>()
 let markdownDirectoryHandle: FileSystemDirectoryHandle | null = null
 
 export function supportsDirectoryPicker() {
@@ -14,12 +15,12 @@ export function getMarkdownDirectoryName() {
   return markdownDirectoryHandle?.name ?? null
 }
 
-export function getMarkdownDirectoryPath(fileName?: string) {
+export function getMarkdownDirectoryPath(fileName?: string, directories: string[] = []) {
   if (!markdownDirectoryHandle) {
     return null
   }
 
-  return [markdownDirectoryHandle.name, fileName].filter(Boolean).join('/')
+  return [markdownDirectoryHandle.name, ...directories, fileName].filter(Boolean).join('/')
 }
 
 export async function chooseMarkdownDirectory() {
@@ -48,6 +49,7 @@ export async function chooseMarkdownDirectory() {
 
 export function clearMarkdownDirectory() {
   markdownDirectoryHandle = null
+  markdownDirectoryHandles.clear()
 }
 
 export async function saveMarkdownFile(noteId: string, markdown: string, title: string): Promise<SaveMarkdownResult> {
@@ -74,7 +76,12 @@ export async function saveMarkdownFile(noteId: string, markdown: string, title: 
   return { mode: 'download' }
 }
 
-export async function saveMarkdownToSelectedDirectory(markdown: string, fileName: string): Promise<SaveMarkdownResult> {
+export async function saveMarkdownToSelectedDirectory(
+  markdown: string,
+  fileName: string,
+  noteId?: string,
+  directories: string[] = [],
+): Promise<SaveMarkdownResult> {
   if (!markdownDirectoryHandle) {
     return { mode: 'cancelled' }
   }
@@ -86,10 +93,11 @@ export async function saveMarkdownToSelectedDirectory(markdown: string, fileName
   }
 
   const safeName = `${toSafeFileName(fileName.replace(/\.md$/i, ''))}.md`
-  const handle = await markdownDirectoryHandle.getFileHandle(safeName, { create: true })
+  const directory = await getNestedDirectoryHandle(markdownDirectoryHandle, directories)
+  const handle = noteId ? await getDirectoryMarkdownHandle(noteId, directory, safeName) : await directory.getFileHandle(safeName, { create: true })
   await writeFileHandle(handle, markdown)
 
-  return { mode: 'directory', path: getMarkdownDirectoryPath(safeName) ?? safeName }
+  return { mode: 'directory', path: getMarkdownDirectoryPath(handle.name, directories) ?? handle.name }
 }
 
 export function getMarkdownFileName(noteId: string, title: string) {
@@ -144,6 +152,28 @@ async function writeFileHandle(handle: FileSystemFileHandle, content: string) {
   await writable.close()
 }
 
+async function getDirectoryMarkdownHandle(noteId: string, directory: FileSystemDirectoryHandle, safeName: string) {
+  const existingHandle = markdownDirectoryHandles.get(noteId)
+
+  if (existingHandle) {
+    return existingHandle
+  }
+
+  const handle = await directory.getFileHandle(safeName, { create: true })
+  markdownDirectoryHandles.set(noteId, handle)
+  return handle
+}
+
+async function getNestedDirectoryHandle(root: FileSystemDirectoryHandle, directories: string[]) {
+  let current = root
+
+  for (const directory of directories.map(toSafePathSegment).filter(Boolean)) {
+    current = await current.getDirectoryHandle(directory, { create: true })
+  }
+
+  return current
+}
+
 function downloadMarkdown(fileName: string, markdown: string) {
   const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' })
   const url = URL.createObjectURL(blob)
@@ -165,4 +195,8 @@ function toSafeFileName(value: string) {
     .slice(0, 80)
 
   return safe || 'note'
+}
+
+function toSafePathSegment(value: string) {
+  return toSafeFileName(value).replace(/\./g, '-')
 }

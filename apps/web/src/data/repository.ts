@@ -20,6 +20,7 @@ const LAST_ACTIVE_NOTE_KEY = 'minddock:last-active-note-id'
 const UNSAVED_DRAFTS_KEY = 'minddock:unsaved-note-drafts:v1'
 const MAX_SNAPSHOTS_PER_NOTE = 20
 const storageProvider: AtomicSnapshotStorageProvider = new IndexedDBProvider()
+let recoveryLogPrinted = false
 const pendingSaves = new Map<
   string,
   {
@@ -176,7 +177,7 @@ export async function ensureDefaultNote() {
   const existing = await loadNote(startupNoteId)
   if (existing) {
     const recoveryTime = performance.now() - recoveryStart
-    console.log(`[CRASH_RECOVERY] Recovered existing note in ${recoveryTime.toFixed(2)}ms`)
+    logRecoveryOnce(`[CRASH_RECOVERY] Recovered existing note in ${recoveryTime.toFixed(2)}ms`)
     return existing
   }
 
@@ -206,9 +207,18 @@ export async function ensureDefaultNote() {
   await storageProvider.saveWithSnapshot(emptyNote, createSnapshot(emptyNote, 'recovery'))
 
   const recoveryTime = performance.now() - recoveryStart
-  console.log(`[CRASH_RECOVERY] Created new note in ${recoveryTime.toFixed(2)}ms`)
+  logRecoveryOnce(`[CRASH_RECOVERY] Created new note in ${recoveryTime.toFixed(2)}ms`)
   
   return emptyNote
+}
+
+function logRecoveryOnce(message: string) {
+  if (recoveryLogPrinted || !import.meta.env.DEV) {
+    return
+  }
+
+  recoveryLogPrinted = true
+  console.info(message)
 }
 
 export async function listNotes(): Promise<NoteSummary[]> {
@@ -325,7 +335,7 @@ async function recoverNoteFromSnapshot(noteId: string) {
     createSnapshot(replayed, 'recovery'),
     buildBlockIndex(replayed.id, replayed.content, replayed.markdown),
   )
-  console.info(`[CRASH_RECOVERY] Restored ${noteId} from local snapshot and operations`)
+  logRecoveryOnce(`[CRASH_RECOVERY] Restored ${noteId} from local snapshot and operations`)
 
   return replayed
 }

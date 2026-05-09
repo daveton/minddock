@@ -606,6 +606,19 @@ button {
     line-height: 1.55;
   }
 
+  .aw-save-targets {
+    display: grid;
+    gap: 12px;
+  }
+
+  .aw-preferences .aw-save-targets .aw-check-row {
+    font-size: 17px;
+  }
+
+  .aw-preferences .aw-save-targets .aw-check-row input:disabled + span {
+    opacity: 0.48;
+  }
+
   .aw-save-location {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;

@@ -23,6 +23,7 @@ interface FileSystemFileHandle {
 interface FileSystemDirectoryHandle {
   name: string
   getFileHandle: (name: string, options?: { create?: boolean }) => Promise<FileSystemFileHandle>
+  getDirectoryHandle: (name: string, options?: { create?: boolean }) => Promise<FileSystemDirectoryHandle>
   queryPermission?: (descriptor?: { mode?: FileSystemPermissionMode }) => Promise<PermissionState>
   requestPermission?: (descriptor?: { mode?: FileSystemPermissionMode }) => Promise<PermissionState>
 }

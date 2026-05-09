@@ -62,6 +62,7 @@ const LAYOUT_STORAGE_KEY = 'minddock.workspace.layout.v1';
 const WORKSPACE_STATE_ID = 'default';
 const LANGUAGE_STORAGE_KEY = 'minddock.workspace.language.v1';
 const MARKDOWN_SYNTAX_STORAGE_KEY = 'minddock.workspace.markdown-syntax.v1';
+const SAVE_PREFERENCES_STORAGE_KEY = 'minddock.workspace.save-preferences.v1';
 const SIDEBAR_DEFAULT = 260;
 const LIST_DEFAULT = 320;
 const SIDEBAR_MIN = 220;
@@ -78,6 +79,7 @@ const FONT_SIZE_MAX = 20;
 const LINE_HEIGHT_DEFAULT = 1.92;
 const LINE_HEIGHT_MIN = 1.6;
 const LINE_HEIGHT_MAX = 2.15;
+const DIRECTORY_SYNC_INTERVAL_MS = 2000;
 
 type WorkspaceLayout = {
   sidebarWidth: number;
@@ -97,6 +99,12 @@ type SaveState = {
   labelKey: I18nKey;
   tone: SaveTone;
   detailKey: I18nKey | null;
+};
+
+type SavePreferences = {
+  database: boolean;
+  directory: boolean;
+  directoryTree: boolean;
 };
 
 type Language = 'en' | 'zh';
@@ -267,6 +275,12 @@ const defaultLayout: WorkspaceLayout = {
   theme: 'light',
 };
 
+const defaultSavePreferences: SavePreferences = {
+  database: true,
+  directory: false,
+  directoryTree: false,
+};
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
@@ -363,6 +377,22 @@ function loadMarkdownSyntaxPreference() {
   return window.localStorage.getItem(MARKDOWN_SYNTAX_STORAGE_KEY) === 'true';
 }
 
+function loadSavePreferences(): SavePreferences {
+  if (typeof window === 'undefined') return defaultSavePreferences;
+
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(SAVE_PREFERENCES_STORAGE_KEY) ?? '{}') as Partial<SavePreferences>;
+
+    return {
+      database: parsed.database ?? defaultSavePreferences.database,
+      directory: parsed.directory ?? defaultSavePreferences.directory,
+      directoryTree: parsed.directoryTree ?? defaultSavePreferences.directoryTree,
+    };
+  } catch {
+    return defaultSavePreferences;
+  }
+}
+
 function getNoteTitle(note: Note | NoteSummary | null, t: (key: I18nKey) => string) {
   if (!note) return t('untitled');
   if (note.title) return note.title;
@@ -374,7 +404,14 @@ function getNoteTitle(note: Note | NoteSummary | null, t: (key: I18nKey) => stri
 function getNoteExcerpt(note: Note | NoteSummary | null, t: (key: I18nKey) => string) {
   if (!note || !hasNoteContent(note)) return t('localNote');
 
-  return findFirstText(note.content, 120) || t('emptyLocalNote');
+  return findFirstBodyParagraph(note.content, 120) || findFirstText(note.content, 120) || t('emptyLocalNote');
+}
+
+function getPrimaryTagDirectories(note: Note | NoteSummary | null) {
+  const tags = note?.metadata?.tags ?? note?.tags ?? [];
+  const primaryTag = tags[0] ?? '';
+
+  return primaryTag.split('/').map((segment) => segment.trim()).filter(Boolean);
 }
 
 function hasNoteContent(note: Note | NoteSummary): note is Note {
@@ -394,6 +431,25 @@ function findFirstText(value: unknown, limit = 56): string {
       const text = findFirstText(child, limit);
       if (text) return text;
     }
+  }
+
+  return '';
+}
+
+function findFirstBodyParagraph(value: unknown, limit = 120): string {
+  if (!value || typeof value !== 'object') return '';
+
+  const node = value as { type?: unknown; content?: unknown };
+  const rootChildren = Array.isArray(node.content) ? node.content : [];
+
+  for (const child of rootChildren) {
+    if (!child || typeof child !== 'object') continue;
+
+    const childNode = child as { type?: unknown };
+    if (childNode.type !== 'paragraph') continue;
+
+    const text = collectText(child).trim().replace(/\s+/g, ' ');
+    if (text) return text.slice(0, limit);
   }
 
   return '';
@@ -673,7 +729,12 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
   const editorHostRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<Editor | null>(null);
   const activeNoteIdRef = useRef<string | null>(null);
+  const activeNoteRef = useRef<Note | null>(null);
+  const savePreferencesRef = useRef<SavePreferences>(loadSavePreferences());
   const applyingRemoteContentRef = useRef(false);
+  const directorySyncTimerRef = useRef<number | null>(null);
+  const directorySyncInFlightRef = useRef(false);
+  const lastDirectorySyncAtRef = useRef(0);
   const [notes, setNotes] = useState<Note[]>([]);
   const [activeNote, setActiveNote] = useState<Note | null>(null);
   const [activeContent, setActiveContent] = useState<Record<string, unknown> | null>(null);
@@ -683,11 +744,21 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
   const [preferenceTab, setPreferenceTab] = useState<PreferenceTab>('general');
   const [markdownDirectoryName, setMarkdownDirectoryName] = useState(getMarkdownDirectoryName);
   const [lastMarkdownPath, setLastMarkdownPath] = useState<string | null>(null);
+  const [savePreferences, setSavePreferences] = useState<SavePreferences>(() => savePreferencesRef.current);
   const [saveState, setSaveState] = useState<SaveState>({
     labelKey: 'loading',
     tone: 'live',
     detailKey: null,
   });
+
+  useEffect(() => {
+    activeNoteRef.current = activeNote;
+  }, [activeNote]);
+
+  useEffect(() => {
+    savePreferencesRef.current = savePreferences;
+    window.localStorage.setItem(SAVE_PREFERENCES_STORAGE_KEY, JSON.stringify(savePreferences));
+  }, [savePreferences]);
 
   useEffect(() => {
     window.localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(layout));
@@ -824,6 +895,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
     const editor = editorRef.current;
     const noteId = activeNoteIdRef.current;
     if (!editor || !noteId) return;
+    if (!savePreferences.database) return;
 
     const result = await saveNoteById(noteId, editor.getJSON());
     if (!result.success) {
@@ -832,23 +904,55 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
     await flushPendingNoteSave(noteId);
 
     await refreshNotes(noteId);
-  }, [refreshNotes]);
+  }, [refreshNotes, savePreferences.database]);
 
-  const syncActiveNoteToDirectory = useCallback(async () => {
+  const syncActiveNoteToDirectory = useCallback(async (mode: 'immediate' | 'throttled' = 'throttled') => {
     const editor = editorRef.current;
     const noteId = activeNoteIdRef.current;
-    if (!editor || !noteId || !getMarkdownDirectoryName()) return null;
+    const preferences = savePreferencesRef.current;
+    if (!editor || !noteId || !preferences.directory || !getMarkdownDirectoryName()) return null;
 
-    const title = getNoteTitle(activeNote, t);
-    const fileName = getMarkdownFileName(noteId, title);
-    const result = await saveMarkdownToSelectedDirectory(serializeMarkdown(editor.getJSON()), fileName);
+    const runSync = async () => {
+      if (directorySyncInFlightRef.current) return null;
 
-    if (result.path) {
-      setLastMarkdownPath(result.path);
+      directorySyncInFlightRef.current = true;
+      try {
+        const title = getNoteTitle(activeNoteRef.current, t);
+        const fileName = getMarkdownFileName(noteId, title);
+        const directories = savePreferencesRef.current.directoryTree ? getPrimaryTagDirectories(activeNoteRef.current) : [];
+        const result = await saveMarkdownToSelectedDirectory(serializeMarkdown(editor.getJSON()), fileName, noteId, directories);
+
+        if (result.path) {
+          setLastMarkdownPath(result.path);
+        }
+
+        lastDirectorySyncAtRef.current = Date.now();
+        return result.path ?? null;
+      } finally {
+        directorySyncInFlightRef.current = false;
+      }
+    };
+
+    if (mode === 'immediate') {
+      if (directorySyncTimerRef.current !== null) {
+        window.clearTimeout(directorySyncTimerRef.current);
+        directorySyncTimerRef.current = null;
+      }
+      return runSync();
     }
 
-    return result.path ?? null;
-  }, [activeNote, t]);
+    const elapsed = Date.now() - lastDirectorySyncAtRef.current;
+    const delay = Math.max(0, DIRECTORY_SYNC_INTERVAL_MS - elapsed);
+
+    if (directorySyncTimerRef.current === null) {
+      directorySyncTimerRef.current = window.setTimeout(() => {
+        directorySyncTimerRef.current = null;
+        void runSync();
+      }, delay);
+    }
+
+    return null;
+  }, [t]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -859,7 +963,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
       event.preventDefault();
       setSaveState({ labelKey: 'savingLocally', tone: 'live', detailKey: null });
       void flushActiveNote()
-        .then(() => syncActiveNoteToDirectory())
+        .then(() => syncActiveNoteToDirectory('immediate'))
         .then(() => {
           setSaveState({ labelKey: 'saved', tone: 'idle', detailKey: null });
         })
@@ -884,10 +988,10 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
 
     const unbind = bindEditorEvents(editor, {
       getNoteId: () => activeNoteIdRef.current ?? '',
-      shouldSave: () => !applyingRemoteContentRef.current,
+      shouldSave: () => !applyingRemoteContentRef.current && savePreferencesRef.current.database,
       onSaving: () => setSaveState({ labelKey: 'savingLocally', tone: 'live', detailKey: null }),
       onSaved: async () => {
-        await syncActiveNoteToDirectory();
+        void syncActiveNoteToDirectory('throttled');
         setSaveState({ labelKey: 'saved', tone: 'idle', detailKey: null });
         await refreshNotes(activeNoteIdRef.current ?? undefined, { promoteId: activeNoteIdRef.current ?? undefined });
       },
@@ -906,6 +1010,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
       const selection = editor.state.selection;
       const scrollTop = getEditorScrollParent(editorHostRef.current)?.scrollTop ?? 0;
       saveEditorStateDebounced(noteId, { from: selection.from, to: selection.to }, scrollTop);
+      void syncActiveNoteToDirectory('throttled');
     };
     editor.on('update', syncActiveContent);
 
@@ -929,6 +1034,10 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
       editor.off('update', syncActiveContent);
       editor.destroy();
       editorRef.current = null;
+      if (directorySyncTimerRef.current !== null) {
+        window.clearTimeout(directorySyncTimerRef.current);
+        directorySyncTimerRef.current = null;
+      }
     };
   }, [refreshNotes, setEditorContent, syncActiveNoteToDirectory]);
 
@@ -970,6 +1079,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
       setSaveState({ labelKey: 'savingBeforeNewNote', tone: 'live', detailKey: null });
       try {
         await flushActiveNote();
+        await syncActiveNoteToDirectory('immediate');
       } catch {
         previousSaveFailed = true;
         setSaveState({
@@ -1012,6 +1122,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
       setSaveState({ labelKey: 'savingBeforeSwitch', tone: 'live', detailKey: null });
       try {
         await flushActiveNote();
+        await syncActiveNoteToDirectory('immediate');
       } catch {
         previousSaveFailed = true;
         setSaveState({
@@ -1061,6 +1172,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
 
     try {
       await flushActiveNote();
+      await syncActiveNoteToDirectory('immediate');
       const markdown = serializeMarkdown(editor.getJSON());
       const result = await saveMarkdownFile(noteId, markdown, activeTitle);
 
@@ -1092,6 +1204,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
     try {
       if (activeNoteIdRef.current) {
         await flushActiveNote();
+        await syncActiveNoteToDirectory('immediate');
       }
 
       await downloadMarkdownBundle();
@@ -1108,10 +1221,12 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
       if (result.mode === 'selected') {
         setMarkdownDirectoryName(result.name);
         const noteId = activeNoteIdRef.current;
+        const directories = savePreferences.directoryTree ? getPrimaryTagDirectories(activeNoteRef.current) : [];
         const fileName = noteId ? getMarkdownFileName(noteId, activeTitle) : undefined;
-        setLastMarkdownPath(getMarkdownDirectoryPath(fileName));
+        setLastMarkdownPath(getMarkdownDirectoryPath(fileName, directories));
+        setSavePreferences((current) => ({ ...current, directory: true }));
         await flushActiveNote();
-        await syncActiveNoteToDirectory();
+        await syncActiveNoteToDirectory('immediate');
         setSaveState({ labelKey: 'saveLocationSelected', tone: 'idle', detailKey: null });
         return;
       }
@@ -1129,6 +1244,31 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
     setMarkdownDirectoryName(null);
     setLastMarkdownPath(null);
     setSaveState({ labelKey: 'saveLocationCleared', tone: 'idle', detailKey: null });
+  };
+
+  const updateSavePreference = (key: keyof SavePreferences, value: boolean) => {
+    if (key === 'directory' && value && !getMarkdownDirectoryName()) {
+      setSaveState({ labelKey: 'saveFailed', tone: 'error', detailKey: 'saveFailedDetail' });
+      return;
+    }
+
+    if (key === 'database' && !value && !savePreferences.directory) {
+      setSaveState({ labelKey: 'saveFailed', tone: 'error', detailKey: 'saveFailedDetail' });
+      return;
+    }
+
+    if (key === 'directory' && !value && !savePreferences.database) {
+      setSaveState({ labelKey: 'saveFailed', tone: 'error', detailKey: 'saveFailedDetail' });
+      return;
+    }
+
+    setSavePreferences((current) => ({ ...current, [key]: value }));
+
+    if (key === 'directory' || key === 'directoryTree') {
+      window.setTimeout(() => {
+        void syncActiveNoteToDirectory('immediate');
+      });
+    }
   };
 
   const handleCheckIntegrity = async () => {
@@ -1212,6 +1352,13 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
     [effectiveActiveTagPath, notes],
   );
   const listTitle = effectiveActiveTagPath ?? t('allNotes');
+  const markdownPathPreview = useMemo(() => {
+    const noteId = activeNoteIdRef.current;
+    const fileName = noteId ? getMarkdownFileName(noteId, activeTitle) : undefined;
+    const directories = savePreferences.directoryTree ? getPrimaryTagDirectories(activeNote) : [];
+
+    return lastMarkdownPath ?? getMarkdownDirectoryPath(fileName, directories) ?? markdownDirectoryName ?? '未选择';
+  }, [activeNote, activeTitle, lastMarkdownPath, markdownDirectoryName, savePreferences.directoryTree]);
 
   return (
     <div className={`aw-desktop ${layout.contextOpen ? 'has-context' : ''} ${layout.focusMode ? 'is-focus-mode' : ''} ${showMarkdownSyntax ? 'show-markdown-syntax' : ''}`} style={workspaceStyle}>
@@ -1323,10 +1470,38 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
               {preferenceTab === 'sync' ? (
                 <section className="aw-sync-panel">
                   <h2>保存与同步</h2>
+                  <div className="aw-save-targets">
+                    <label className="aw-check-row">
+                      <input
+                        checked={savePreferences.database}
+                        onChange={(event) => updateSavePreference('database', event.target.checked)}
+                        type="checkbox"
+                      />
+                      <span>保存到数据库 IndexedDB</span>
+                    </label>
+                    <label className="aw-check-row">
+                      <input
+                        checked={savePreferences.directory}
+                        disabled={!markdownDirectoryName}
+                        onChange={(event) => updateSavePreference('directory', event.target.checked)}
+                        type="checkbox"
+                      />
+                      <span>保存到本地 Markdown 文件夹</span>
+                    </label>
+                    <label className="aw-check-row">
+                      <input
+                        checked={savePreferences.directoryTree}
+                        disabled={!savePreferences.directory}
+                        onChange={(event) => updateSavePreference('directoryTree', event.target.checked)}
+                        type="checkbox"
+                      />
+                      <span>按照标签目录树创建文件夹层级</span>
+                    </label>
+                  </div>
                   <div className="aw-save-location">
                     <span>Markdown 保存位置</span>
-                    <strong title={lastMarkdownPath ?? markdownDirectoryName ?? '未选择'}>
-                      {lastMarkdownPath ?? markdownDirectoryName ?? '未选择'}
+                    <strong title={markdownPathPreview}>
+                      {markdownPathPreview}
                     </strong>
                     <div>
                       <button disabled={!supportsDirectoryPicker()} onClick={() => { void handleChooseSaveLocation(); }}>
@@ -1339,14 +1514,10 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
                   </div>
                   <p>
                     {supportsDirectoryPicker()
-                      ? '选择后，自动保存和导出 Markdown 会写入上方路径。浏览器不会向网页暴露磁盘绝对路径，笔记仍会实时保存在本浏览器 IndexedDB 中。'
+                      ? '可以单独保存到数据库、单独保存到本地文件夹，或两者同时保存。启用目录树后，会按笔记第一个标签路径创建子文件夹。浏览器不会向网页暴露磁盘绝对路径。'
                       : '当前浏览器不支持选择文件夹，导出时会使用下载或文件保存对话框。'}
                   </p>
-                  <label className="aw-check-row">
-                    <input defaultChecked type="checkbox" />
-                    <span>本地自动保存</span>
-                  </label>
-                  <p><strong>上次同步：</strong> 永不</p>
+                  <p><strong>当前策略：</strong> {savePreferences.database ? '数据库' : ''}{savePreferences.database && savePreferences.directory ? ' + ' : ''}{savePreferences.directory ? '本地文件夹' : ''}</p>
                 </section>
               ) : null}
             </div>
