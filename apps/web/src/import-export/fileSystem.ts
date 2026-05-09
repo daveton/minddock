@@ -1,11 +1,58 @@
 type SaveMarkdownResult = {
-  mode: 'file-system' | 'download' | 'cancelled'
+  mode: 'directory' | 'file-system' | 'download' | 'cancelled'
 }
 
 const markdownHandles = new Map<string, FileSystemFileHandle>()
+let markdownDirectoryHandle: FileSystemDirectoryHandle | null = null
+
+export function supportsDirectoryPicker() {
+  return typeof window !== 'undefined' && 'showDirectoryPicker' in window
+}
+
+export function getMarkdownDirectoryName() {
+  return markdownDirectoryHandle?.name ?? null
+}
+
+export async function chooseMarkdownDirectory() {
+  if (!supportsDirectoryPicker() || !window.showDirectoryPicker) {
+    return { mode: 'unsupported' as const }
+  }
+
+  try {
+    const handle = await window.showDirectoryPicker()
+    const permission = await ensureHandlePermission(handle)
+
+    if (!permission) {
+      return { mode: 'denied' as const }
+    }
+
+    markdownDirectoryHandle = handle
+    return { mode: 'selected' as const, name: handle.name }
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      return { mode: 'cancelled' as const }
+    }
+
+    throw error
+  }
+}
+
+export function clearMarkdownDirectory() {
+  markdownDirectoryHandle = null
+}
 
 export async function saveMarkdownFile(noteId: string, markdown: string, title: string): Promise<SaveMarkdownResult> {
   const suggestedName = `${toSafeFileName(title || noteId)}.md`
+
+  if (markdownDirectoryHandle) {
+    const permission = await ensureHandlePermission(markdownDirectoryHandle)
+
+    if (permission) {
+      const handle = await markdownDirectoryHandle.getFileHandle(suggestedName, { create: true })
+      await writeFileHandle(handle, markdown)
+      return { mode: 'directory' }
+    }
+  }
 
   if (supportsFileSystemAccess()) {
     const existingHandle = markdownHandles.get(noteId)
@@ -26,6 +73,16 @@ export async function saveMarkdownFile(noteId: string, markdown: string, title: 
 
 function supportsFileSystemAccess() {
   return typeof window !== 'undefined' && 'showSaveFilePicker' in window
+}
+
+async function ensureHandlePermission(handle: FileSystemDirectoryHandle | FileSystemFileHandle) {
+  const descriptor = { mode: 'readwrite' as const }
+
+  if ((await handle.queryPermission?.(descriptor)) === 'granted') {
+    return true
+  }
+
+  return (await handle.requestPermission?.(descriptor)) === 'granted'
 }
 
 async function pickMarkdownSaveHandle(suggestedName: string) {

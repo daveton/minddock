@@ -27,7 +27,13 @@ import type { TagNode } from '../data/tagIndex';
 import { analyzeNoteContent, findRelatedNotes } from '../data/knowledgeAnalysis';
 import { checkDataIntegrity } from '../data/integrity';
 import { downloadMarkdownBundle } from '../import-export/bundle';
-import { saveMarkdownFile } from '../import-export/fileSystem';
+import {
+  chooseMarkdownDirectory,
+  clearMarkdownDirectory,
+  getMarkdownDirectoryName,
+  saveMarkdownFile,
+  supportsDirectoryPicker,
+} from '../import-export/fileSystem';
 import { serializeMarkdown } from '../import-export/markdown';
 import { debounce } from '../utils/debounce';
 
@@ -60,7 +66,6 @@ const SIDEBAR_MAX = 1200;
 const LIST_MIN = 260;
 const LIST_MAX = 1600;
 const MAIN_MIN = 520;
-const CONTEXT_WIDTH = 320;
 const EDITOR_WIDTH_DEFAULT = 720;
 const EDITOR_WIDTH_MIN = 580;
 const EDITOR_WIDTH_MAX = 1800;
@@ -145,6 +150,8 @@ const translations = {
     saveFailedDetail: 'Latest changes are cached in this browser. This note is marked unsaved in the list.',
     saveFailedSwitchDetail: 'Latest changes were cached in this browser, so switching can continue.',
     saved: 'Saved',
+    saveLocationSelected: 'Save location selected',
+    saveLocationCleared: 'Save location cleared',
     savedMarkdownDisk: 'Saved to disk',
     savedMarkdownDownload: 'Markdown downloaded',
     savedBundleDownload: 'Bundle downloaded',
@@ -213,6 +220,8 @@ const translations = {
     saveFailedDetail: '最新更改已缓存在本浏览器中，并会在列表里标记为未保存。',
     saveFailedSwitchDetail: '最新更改已缓存在本浏览器中，可以继续切换笔记。',
     saved: '已保存',
+    saveLocationSelected: '已选择保存位置',
+    saveLocationCleared: '已清除保存位置',
     savedMarkdownDisk: '已保存到磁盘',
     savedMarkdownDownload: 'Markdown 已下载',
     savedBundleDownload: 'Bundle 已下载',
@@ -264,7 +273,8 @@ function getAvailableDesktopWidth() {
 }
 
 function getContextWidth(layout: Pick<WorkspaceLayout, 'contextOpen' | 'focusMode'>) {
-  return layout.contextOpen && !layout.focusMode ? CONTEXT_WIDTH : 0;
+  void layout;
+  return 0;
 }
 
 function getSidebarMax(layout: Pick<WorkspaceLayout, 'listWidth' | 'contextOpen' | 'focusMode'>) {
@@ -648,7 +658,7 @@ function MobileWorkspace({ language, setLanguage, t }: { language: Language; set
   );
 }
 
-function DesktopWorkspace({ language, setLanguage, t }: { language: Language; setLanguage: Dispatch<SetStateAction<Language>>; t: (key: I18nKey) => string }) {
+function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKey) => string }) {
   const [layout, setLayout] = useState<WorkspaceLayout>(loadLayout);
   const [showMarkdownSyntax, setShowMarkdownSyntax] = useState(loadMarkdownSyntaxPreference);
   const [formatToolbarOpen, setFormatToolbarOpen] = useState(true);
@@ -665,6 +675,7 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('stats');
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [preferenceTab, setPreferenceTab] = useState<PreferenceTab>('general');
+  const [markdownDirectoryName, setMarkdownDirectoryName] = useState(getMarkdownDirectoryName);
   const [saveState, setSaveState] = useState<SaveState>({
     labelKey: 'loading',
     tone: 'live',
@@ -730,7 +741,8 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
 
       if (event.key === '.') {
         event.preventDefault();
-        updateLayout(setLayout, (current) => ({ ...current, contextOpen: !current.contextOpen, focusMode: false }));
+        setInspectorOpen((current) => !current);
+        setInspectorTab('ai');
       }
 
       if (event.key === '\\') {
@@ -1011,7 +1023,7 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
       }
 
       setSaveState({
-        labelKey: result.mode === 'file-system' ? 'savedMarkdownDisk' : 'savedMarkdownDownload',
+        labelKey: result.mode === 'directory' || result.mode === 'file-system' ? 'savedMarkdownDisk' : 'savedMarkdownDownload',
         tone: 'idle',
         detailKey: null,
       });
@@ -1037,6 +1049,30 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
     } catch {
       setSaveState({ labelKey: 'saveFailed', tone: 'error', detailKey: 'saveFailedDetail' });
     }
+  };
+
+  const handleChooseSaveLocation = async () => {
+    try {
+      const result = await chooseMarkdownDirectory();
+
+      if (result.mode === 'selected') {
+        setMarkdownDirectoryName(result.name);
+        setSaveState({ labelKey: 'saveLocationSelected', tone: 'idle', detailKey: null });
+        return;
+      }
+
+      if (result.mode === 'unsupported' || result.mode === 'denied') {
+        setSaveState({ labelKey: 'saveFailed', tone: 'error', detailKey: 'saveFailedDetail' });
+      }
+    } catch {
+      setSaveState({ labelKey: 'saveFailed', tone: 'error', detailKey: 'saveFailedDetail' });
+    }
+  };
+
+  const handleClearSaveLocation = () => {
+    clearMarkdownDirectory();
+    setMarkdownDirectoryName(null);
+    setSaveState({ labelKey: 'saveLocationCleared', tone: 'idle', detailKey: null });
   };
 
   const handleCheckIntegrity = async () => {
@@ -1233,13 +1269,29 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
               ) : null}
               {preferenceTab === 'sync' ? (
                 <section className="aw-sync-panel">
-                  <h2>同步</h2>
+                  <h2>保存与同步</h2>
+                  <div className="aw-save-location">
+                    <span>Markdown 保存位置</span>
+                    <strong>{markdownDirectoryName ?? '未选择'}</strong>
+                    <div>
+                      <button disabled={!supportsDirectoryPicker()} onClick={() => { void handleChooseSaveLocation(); }}>
+                        选择文件夹
+                      </button>
+                      <button disabled={!markdownDirectoryName} onClick={handleClearSaveLocation}>
+                        清除
+                      </button>
+                    </div>
+                  </div>
+                  <p>
+                    {supportsDirectoryPicker()
+                      ? '选择后，导出 Markdown 会直接保存到这个文件夹。笔记仍会实时保存在本浏览器 IndexedDB 中。'
+                      : '当前浏览器不支持选择文件夹，导出时会使用下载或文件保存对话框。'}
+                  </p>
                   <label className="aw-check-row">
                     <input defaultChecked type="checkbox" />
-                    <span>iCloud 同步</span>
+                    <span>本地自动保存</span>
                   </label>
                   <p><strong>上次同步：</strong> 永不</p>
-                  <p>在这个设备上禁用同步功能，不会在其他设备上禁用。</p>
                 </section>
               ) : null}
             </div>
@@ -1327,41 +1379,12 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
               B<em>I</em><u>U</u>
             </button>
             <button
-              aria-label={t('markdownSyntax')}
-              aria-pressed={showMarkdownSyntax}
-              className={showMarkdownSyntax ? 'is-active' : ''}
-              onClick={() => setShowMarkdownSyntax((current) => !current)}
-            >
-              #
-            </button>
-            <button
               aria-label="Note statistics"
               aria-expanded={inspectorOpen}
               className={inspectorOpen ? 'is-active' : ''}
               onClick={() => setInspectorOpen((current) => !current)}
             >
               ⓘ
-            </button>
-            <button
-              aria-label={t('language')}
-              onClick={() => setLanguage((current) => (current === 'en' ? 'zh' : 'en'))}
-            >
-              {language === 'en' ? '中' : 'En'}
-            </button>
-            <button
-              aria-label={t('openContext')}
-              aria-pressed={layout.contextOpen}
-              className={layout.contextOpen ? 'is-active' : ''}
-              onClick={() => updateLayout(setLayout, (current) => ({ ...current, contextOpen: !current.contextOpen, focusMode: false }))}
-            >
-              ◫
-            </button>
-            <button
-              aria-label={t('focusMode')}
-              className={layout.focusMode ? 'is-active' : ''}
-              onClick={() => updateLayout(setLayout, (current) => ({ ...current, focusMode: !current.focusMode }))}
-            >
-              ⛶
             </button>
             <button
               aria-label="More"
@@ -1380,7 +1403,6 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
             <button role="menuitem" onClick={() => { void handleExportMarkdown(); setMoreMenuOpen(false); }}>导出笔记...</button>
             <button role="menuitem" onClick={() => { void handleExportBundle(); setMoreMenuOpen(false); }}>导出资料包...</button>
             <button role="menuitem" onClick={() => { void handleCheckIntegrity(); setMoreMenuOpen(false); }}>切换数据</button>
-            <button role="menuitem" onClick={() => updateLayout(setLayout, (current) => ({ ...current, contextOpen: !current.contextOpen }))}>显示/隐藏浏览导航</button>
             <button role="menuitem">删除</button>
             <button role="menuitem">归档</button>
             <button role="menuitem">加密与锁定</button>
@@ -1454,10 +1476,31 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
               </div>
             ) : null}
             {inspectorTab === 'ai' ? (
-              <div className="aw-ai-panel">
-                <button>{t('aiSummary')}</button>
-                <button>{t('timeline')}</button>
-                <button>{t('relatedNotes')}</button>
+              <div className="aw-popover-context">
+                <section className="aw-context-command">
+                  <h2>{t('aiSummary')}</h2>
+                  <p>{activeAnalysis.summary || t('contextSummary')}</p>
+                </section>
+
+                <section>
+                  <h2>{t('timeline')}</h2>
+                  {activeAnalysis.timeline.length > 0 ? (
+                    <ol className="aw-timeline">
+                      {activeAnalysis.timeline.map((item) => (
+                        <li key={item.id}>{item.text}</li>
+                      ))}
+                    </ol>
+                  ) : <p className="aw-context-empty">{t('noTimeline')}</p>}
+                </section>
+
+                <section>
+                  <h2>{t('relatedNotes')}</h2>
+                  {relatedLocalNotes.length > 0 ? relatedLocalNotes.map((item) => (
+                    <button key={item.id} onClick={() => { void handleSwitchNote(item.id); }}>
+                      {item.title}
+                    </button>
+                  )) : <p className="aw-context-empty">{t('noRelatedNotes')}</p>}
+                </section>
               </div>
             ) : null}
           </aside>
@@ -1495,33 +1538,6 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
         </article>
       </main>
 
-      <aside className="aw-context">
-        <p className="aw-kicker">{t('context')}</p>
-        <section>
-          <h2>{t('relatedNotes')}</h2>
-          {relatedLocalNotes.length > 0 ? relatedLocalNotes.map((item) => (
-            <button key={item.id} onClick={() => { void handleSwitchNote(item.id); }}>
-              {item.title}
-            </button>
-          )) : <p className="aw-context-empty">{t('noRelatedNotes')}</p>}
-        </section>
-
-        <section>
-          <h2>{t('timeline')}</h2>
-          {activeAnalysis.timeline.length > 0 ? (
-            <ol className="aw-timeline">
-              {activeAnalysis.timeline.map((item) => (
-                <li key={item.id}>{item.text}</li>
-              ))}
-            </ol>
-          ) : <p className="aw-context-empty">{t('noTimeline')}</p>}
-        </section>
-
-        <section className="aw-context-command">
-          <h2>{t('aiSummary')}</h2>
-          <p>{activeAnalysis.summary || t('contextSummary')}</p>
-        </section>
-      </aside>
     </div>
   );
 }
@@ -1537,7 +1553,7 @@ export function WorkspaceViewFinal() {
   return (
     <div className="aw-root">
       <MobileWorkspace language={language} setLanguage={setLanguage} t={t} />
-      <DesktopWorkspace language={language} setLanguage={setLanguage} t={t} />
+      <DesktopWorkspace language={language} t={t} />
     </div>
   );
 }
