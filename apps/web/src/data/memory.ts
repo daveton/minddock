@@ -66,6 +66,10 @@ export type WorkspaceStateRecord = {
   id: string
   sidebarWidth: number
   listWidth: number
+  editorWidth?: number
+  fontSize?: number
+  lineHeight?: number
+  compactMode?: boolean
   contextOpen: boolean
   theme: 'light'
   focusMode: boolean

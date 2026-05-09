@@ -54,18 +54,31 @@ const LAYOUT_STORAGE_KEY = 'minddock.workspace.layout.v1';
 const WORKSPACE_STATE_ID = 'default';
 const LANGUAGE_STORAGE_KEY = 'minddock.workspace.language.v1';
 const MARKDOWN_SYNTAX_STORAGE_KEY = 'minddock.workspace.markdown-syntax.v1';
-const SIDEBAR_DEFAULT = 256;
+const SIDEBAR_DEFAULT = 260;
 const LIST_DEFAULT = 320;
 const SIDEBAR_MIN = 220;
 const SIDEBAR_MAX = 320;
 const LIST_MIN = 260;
 const LIST_MAX = 420;
+const EDITOR_WIDTH_DEFAULT = 720;
+const EDITOR_WIDTH_MIN = 580;
+const EDITOR_WIDTH_MAX = 820;
+const FONT_SIZE_DEFAULT = 17;
+const FONT_SIZE_MIN = 15;
+const FONT_SIZE_MAX = 20;
+const LINE_HEIGHT_DEFAULT = 1.92;
+const LINE_HEIGHT_MIN = 1.6;
+const LINE_HEIGHT_MAX = 2.15;
 
 type WorkspaceLayout = {
   sidebarWidth: number;
   listWidth: number;
+  editorWidth: number;
+  fontSize: number;
+  lineHeight: number;
   contextOpen: boolean;
   focusMode: boolean;
+  compactMode: boolean;
   theme: 'light';
 };
 
@@ -223,8 +236,12 @@ type I18nKey = keyof typeof translations.en;
 const defaultLayout: WorkspaceLayout = {
   sidebarWidth: SIDEBAR_DEFAULT,
   listWidth: LIST_DEFAULT,
+  editorWidth: EDITOR_WIDTH_DEFAULT,
+  fontSize: FONT_SIZE_DEFAULT,
+  lineHeight: LINE_HEIGHT_DEFAULT,
   contextOpen: true,
   focusMode: false,
+  compactMode: false,
   theme: 'light',
 };
 
@@ -243,8 +260,12 @@ function loadLayout(): WorkspaceLayout {
     return {
       sidebarWidth: clamp(parsed.sidebarWidth ?? SIDEBAR_DEFAULT, SIDEBAR_MIN, SIDEBAR_MAX),
       listWidth: clamp(parsed.listWidth ?? LIST_DEFAULT, LIST_MIN, LIST_MAX),
+      editorWidth: clamp(parsed.editorWidth ?? EDITOR_WIDTH_DEFAULT, EDITOR_WIDTH_MIN, EDITOR_WIDTH_MAX),
+      fontSize: clamp(parsed.fontSize ?? FONT_SIZE_DEFAULT, FONT_SIZE_MIN, FONT_SIZE_MAX),
+      lineHeight: clamp(parsed.lineHeight ?? LINE_HEIGHT_DEFAULT, LINE_HEIGHT_MIN, LINE_HEIGHT_MAX),
       contextOpen: parsed.contextOpen ?? defaultLayout.contextOpen,
       focusMode: parsed.focusMode ?? defaultLayout.focusMode,
+      compactMode: parsed.compactMode ?? defaultLayout.compactMode,
       theme: 'light',
     };
   } catch {
@@ -574,6 +595,7 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
   const [activeContent, setActiveContent] = useState<Record<string, unknown> | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('stats');
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>({
     labelKey: 'loading',
     tone: 'live',
@@ -586,6 +608,10 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
       id: WORKSPACE_STATE_ID,
       sidebarWidth: layout.sidebarWidth,
       listWidth: layout.listWidth,
+      editorWidth: layout.editorWidth,
+      fontSize: layout.fontSize,
+      lineHeight: layout.lineHeight,
+      compactMode: layout.compactMode,
       contextOpen: layout.contextOpen,
       theme: layout.theme,
       focusMode: layout.focusMode,
@@ -601,9 +627,13 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
       setLayout({
         sidebarWidth: clamp(saved.sidebarWidth, SIDEBAR_MIN, SIDEBAR_MAX),
         listWidth: clamp(saved.listWidth, LIST_MIN, LIST_MAX),
+        editorWidth: clamp(saved.editorWidth ?? EDITOR_WIDTH_DEFAULT, EDITOR_WIDTH_MIN, EDITOR_WIDTH_MAX),
+        fontSize: clamp(saved.fontSize ?? FONT_SIZE_DEFAULT, FONT_SIZE_MIN, FONT_SIZE_MAX),
+        lineHeight: clamp(saved.lineHeight ?? LINE_HEIGHT_DEFAULT, LINE_HEIGHT_MIN, LINE_HEIGHT_MAX),
         contextOpen: saved.contextOpen,
         theme: 'light',
         focusMode: saved.focusMode,
+        compactMode: saved.compactMode ?? false,
       });
     });
 
@@ -780,6 +810,9 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
         '--sidebar-width': layout.focusMode ? '0px' : `${layout.sidebarWidth}px`,
         '--list-width': layout.focusMode ? '0px' : `${layout.listWidth}px`,
         '--context-width': layout.contextOpen && !layout.focusMode ? '320px' : '0px',
+        '--editor-width': `${layout.editorWidth}px`,
+        '--editor-font-size': `${layout.fontSize}px`,
+        '--editor-line-height': layout.lineHeight,
       }) as React.CSSProperties,
     [layout],
   );
@@ -1006,8 +1039,90 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
             <span />
             <span />
           </div>
-          <button className="aw-sidebar-tune" aria-label="Sidebar settings">☷</button>
+          <button
+            className="aw-sidebar-tune"
+            aria-label="Sidebar settings"
+            aria-expanded={preferencesOpen}
+            onClick={() => setPreferencesOpen((current) => !current)}
+          >
+            ☷
+          </button>
         </div>
+        {preferencesOpen ? (
+          <aside className="aw-preferences" aria-label="Preferences">
+            <nav>
+              <button className="is-active">Editor</button>
+              <button>Appearance</button>
+              <button>Behavior</button>
+            </nav>
+            <div className="aw-preferences__body">
+              <section>
+                <h2>Editor</h2>
+                <label>
+                  <span>Font Size</span>
+                  <input
+                    min={FONT_SIZE_MIN}
+                    max={FONT_SIZE_MAX}
+                    type="range"
+                    value={layout.fontSize}
+                    onChange={(event) => setLayout((current) => ({ ...current, fontSize: Number(event.target.value) }))}
+                  />
+                  <strong>{layout.fontSize}px</strong>
+                </label>
+                <label>
+                  <span>Line Height</span>
+                  <input
+                    max={LINE_HEIGHT_MAX}
+                    min={LINE_HEIGHT_MIN}
+                    step="0.05"
+                    type="range"
+                    value={layout.lineHeight}
+                    onChange={(event) => setLayout((current) => ({ ...current, lineHeight: Number(event.target.value) }))}
+                  />
+                  <strong>{layout.lineHeight.toFixed(2)}</strong>
+                </label>
+                <label>
+                  <span>Editor Width</span>
+                  <input
+                    max={EDITOR_WIDTH_MAX}
+                    min={EDITOR_WIDTH_MIN}
+                    step="20"
+                    type="range"
+                    value={layout.editorWidth}
+                    onChange={(event) => setLayout((current) => ({ ...current, editorWidth: Number(event.target.value) }))}
+                  />
+                  <strong>{layout.editorWidth}px</strong>
+                </label>
+              </section>
+              <section>
+                <h2>Appearance</h2>
+                <button onClick={() => setLayout((current) => ({ ...current, focusMode: !current.focusMode }))}>
+                  Focus Mode <strong>{layout.focusMode ? 'On' : 'Off'}</strong>
+                </button>
+                <button onClick={() => setShowMarkdownSyntax((current) => !current)}>
+                  Markdown <strong>{showMarkdownSyntax ? 'On' : 'Off'}</strong>
+                </button>
+                <button onClick={() => setLayout((current) => ({ ...current, compactMode: !current.compactMode }))}>
+                  Compact Mode <strong>{layout.compactMode ? 'On' : 'Off'}</strong>
+                </button>
+                <button
+                  onClick={() =>
+                    setLayout((current) => ({
+                      ...current,
+                      sidebarWidth: SIDEBAR_DEFAULT,
+                      listWidth: LIST_DEFAULT,
+                      editorWidth: EDITOR_WIDTH_DEFAULT,
+                      fontSize: FONT_SIZE_DEFAULT,
+                      lineHeight: LINE_HEIGHT_DEFAULT,
+                    }))
+                  }
+                >
+                  Reset Layout <strong>Default</strong>
+                </button>
+              </section>
+            </div>
+          </aside>
+        ) : null}
 
         <nav className="aw-space-list" aria-label={t('workspace')}>
           <section className="aw-tree-section">
