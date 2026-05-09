@@ -1,4 +1,5 @@
 import { InputRule, Mark, mergeAttributes } from '@tiptap/core'
+import { Plugin } from '@tiptap/pm/state'
 
 const TAG_PATTERN = /(?:^|\s)(#[\p{L}\p{N}_/-]+)\s$/u
 
@@ -62,6 +63,54 @@ export const Tag = Mark.create({
       }),
     ]
   },
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        appendTransaction: (transactions, _oldState, newState) => {
+          if (!transactions.some((transaction) => transaction.docChanged)) {
+            return null
+          }
+
+          let transaction = newState.tr
+          let changed = false
+
+          newState.doc.descendants((node, pos) => {
+            if (!node.isText) {
+              return true
+            }
+
+            const tagMark = node.marks.find((mark) => mark.type === this.type)
+            if (!tagMark) {
+              return true
+            }
+
+            const text = node.text ?? ''
+            const path = parseRenderedTag(text)
+            const from = pos
+            const to = pos + node.nodeSize
+
+            if (!path) {
+              transaction = transaction.removeMark(from, to, this.type)
+              changed = true
+              return true
+            }
+
+            if (tagMark.attrs.path !== path) {
+              transaction = transaction
+                .removeMark(from, to, this.type)
+                .addMark(from, to, this.type.create({ path }))
+              changed = true
+            }
+
+            return true
+          })
+
+          return changed ? transaction : null
+        },
+      }),
+    ]
+  },
 })
 
 function normalizeTagPath(value: string) {
@@ -70,4 +119,13 @@ function normalizeTagPath(value: string) {
     .map((segment) => segment.trim())
     .filter(Boolean)
     .join('/')
+}
+
+function parseRenderedTag(value: string) {
+  const text = value.trim()
+  if (!text.startsWith('#')) {
+    return ''
+  }
+
+  return normalizeTagPath(text.slice(1))
 }

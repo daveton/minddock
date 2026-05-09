@@ -210,7 +210,8 @@ function collectTagMarks(node: ProseMirrorNode | null | undefined, tags: Set<str
       continue
     }
 
-    const path = typeof mark.attrs?.path === 'string' ? normalizeTagPath(mark.attrs.path) : ''
+    const textPath = typeof node.text === 'string' ? parseRenderedTag(node.text) : ''
+    const path = textPath || (typeof mark.attrs?.path === 'string' ? normalizeTagPath(mark.attrs.path) : '')
     if (path) {
       tags.add(path)
     }
@@ -225,6 +226,15 @@ function normalizeTagPath(value: string) {
     .map((segment) => segment.trim())
     .filter(Boolean)
     .join('/')
+}
+
+function parseRenderedTag(value: string) {
+  const text = value.trim()
+  if (!text.startsWith('#')) {
+    return ''
+  }
+
+  return normalizeTagPath(text.slice(1))
 }
 
 function isNode(value: unknown): value is ProseMirrorNode {
