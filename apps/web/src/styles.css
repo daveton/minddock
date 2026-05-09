@@ -410,6 +410,27 @@ button {
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
   }
 
+  .aw-settings-button {
+    display: inline-flex;
+    width: 34px;
+    height: 34px;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-control);
+    background: rgba(255, 255, 255, 0.08);
+    color: #d8dcda;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    transition: background var(--motion-fast), color var(--motion-fast);
+  }
+
+  .aw-settings-button:hover,
+  .aw-settings-button:focus-visible {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+  }
+
   .aw-preferences {
     position: fixed;
     top: 0;
@@ -427,6 +448,29 @@ button {
     box-shadow: 0 26px 70px rgba(0, 0, 0, 0.24);
     transform: translateX(-50%);
     backdrop-filter: blur(28px);
+  }
+
+  .aw-preferences__close {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    z-index: 1;
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-control);
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .aw-preferences__close:hover,
+  .aw-preferences__close:focus-visible {
+    background: rgba(0, 0, 0, 0.12);
   }
 
   .aw-preferences nav {
@@ -774,6 +818,8 @@ button {
 
   .aw-note-list__items button {
     position: relative;
+    display: flex;
+    flex-direction: column;
     min-height: 120px;
     border-bottom: 1px solid var(--border-ultra-light);
     border-radius: 0;
@@ -854,10 +900,25 @@ button {
     -webkit-line-clamp: 2;
   }
 
-  .aw-note-list__items small {
+  .aw-note-list__footer {
+    display: flex;
+    min-height: 33px;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: auto;
+    padding-top: 12px;
+  }
+
+  .aw-note-list__items small,
+  .aw-note-list__footer small {
     margin-top: 12px;
     color: #8a8a8a;
     font-size: 13px;
+  }
+
+  .aw-note-list__footer small {
+    margin-top: 0;
   }
 
   .aw-editor-shell {
@@ -878,6 +939,21 @@ button {
     background: rgba(255, 255, 255, 0.72);
     padding: 0 var(--space-5);
     backdrop-filter: blur(20px);
+    transform: translateY(0);
+    transition: transform 180ms ease, opacity 180ms ease, border-color 180ms ease;
+    will-change: transform;
+  }
+
+  .aw-editor-toolbar.is-hidden {
+    border-bottom-color: transparent;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-100%);
+  }
+
+  .aw-editor-toolbar.is-visible {
+    opacity: 1;
+    transform: translateY(0);
   }
 
   .aw-editor-titleline,
@@ -1130,28 +1206,16 @@ button {
     letter-spacing: 0;
   }
 
-  .aw-editor-meta {
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-end;
-    gap: var(--space-5);
-    border-bottom: 0;
-    padding-bottom: 0;
-    min-height: 0;
-    pointer-events: none;
-  }
-
   .aw-save-stack {
     display: grid;
-    justify-items: end;
-    gap: var(--space-2);
+    justify-items: start;
+    gap: 6px;
     flex: 0 0 auto;
-    opacity: 0.46;
+    opacity: 0.58;
     transition: opacity 140ms;
-    pointer-events: auto;
   }
 
-  .aw-editor-meta:hover .aw-save-stack {
+  .aw-note-list__items .is-active:hover .aw-save-stack {
     opacity: 1;
   }
 

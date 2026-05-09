@@ -727,6 +727,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [activeTagPath, setActiveTagPath] = useState<string | null>('study/历史/清朝');
   const editorHostRef = useRef<HTMLDivElement>(null);
+  const editorShellRef = useRef<HTMLElement>(null);
   const editorRef = useRef<Editor | null>(null);
   const activeNoteIdRef = useRef<string | null>(null);
   const activeNoteRef = useRef<Note | null>(null);
@@ -740,11 +741,12 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
   const [activeContent, setActiveContent] = useState<Record<string, unknown> | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('stats');
-  const [preferencesOpen] = useState(false);
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [preferenceTab, setPreferenceTab] = useState<PreferenceTab>('general');
   const [markdownDirectoryName, setMarkdownDirectoryName] = useState(getMarkdownDirectoryName);
   const [lastMarkdownPath, setLastMarkdownPath] = useState<string | null>(null);
   const [savePreferences, setSavePreferences] = useState<SavePreferences>(() => savePreferencesRef.current);
+  const [editorNavbarVisible, setEditorNavbarVisible] = useState(true);
   const [saveState, setSaveState] = useState<SaveState>({
     labelKey: 'loading',
     tone: 'live',
@@ -807,6 +809,38 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    const shell = editorShellRef.current;
+    if (!shell) return;
+
+    let lastScrollTop = shell.scrollTop;
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (ticking) return;
+
+      ticking = true;
+      window.requestAnimationFrame(() => {
+        const nextScrollTop = shell.scrollTop;
+        const delta = nextScrollTop - lastScrollTop;
+
+        if (nextScrollTop < 12 || delta < -4) {
+          setEditorNavbarVisible(true);
+        } else if (delta > 4) {
+          setEditorNavbarVisible(false);
+          setMoreMenuOpen(false);
+          setInspectorOpen(false);
+        }
+
+        lastScrollTop = nextScrollTop;
+        ticking = false;
+      });
+    };
+
+    shell.addEventListener('scroll', handleScroll, { passive: true });
+    return () => shell.removeEventListener('scroll', handleScroll);
   }, []);
 
   useEffect(() => {
@@ -1365,9 +1399,27 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
       <aside className="aw-sidebar">
         <div className="aw-sidebar__brand">
           <img className="aw-sidebar-logo" src="/logo.JPG" alt={t('brand')} />
+          <button
+            className="aw-settings-button"
+            onClick={() => setPreferencesOpen((current) => !current)}
+            type="button"
+            aria-label="打开设置"
+            title="设置"
+          >
+            ⚙
+          </button>
         </div>
         {preferencesOpen ? (
           <aside className="aw-preferences" aria-label="Preferences">
+            <button
+              className="aw-preferences__close"
+              onClick={() => setPreferencesOpen(false)}
+              type="button"
+              aria-label="关闭设置"
+              title="关闭"
+            >
+              ×
+            </button>
             <nav>
               {preferenceTabs.map(({ id, icon, label }) => (
                 <button
@@ -1568,7 +1620,15 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
                 {note.localStatus === 'unsaved' ? <em>{t('saveFailed')}</em> : null}
               </div>
               <span>{getNoteExcerpt(note, t)}</span>
-              <small>{formatNoteDate(note.updatedAt)}</small>
+              <div className="aw-note-list__footer">
+                {note.id === activeNote?.id ? (
+                  <div className="aw-save-stack">
+                    <span className="aw-status-pill" data-tone={saveState.tone}>{t(saveState.labelKey)}</span>
+                    <small>{formatNoteTime(note.updatedAt)}</small>
+                  </div>
+                ) : null}
+                <small>{formatNoteDate(note.updatedAt)}</small>
+              </div>
             </button>
           ))}
         </div>
@@ -1580,8 +1640,8 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
         onReset={() => setLayout((current) => ({ ...current, listWidth: LIST_DEFAULT }))}
       />
 
-      <main className="aw-editor-shell">
-        <div className="aw-editor-toolbar">
+      <main className="aw-editor-shell" ref={editorShellRef}>
+        <div className={`aw-editor-toolbar ${editorNavbarVisible || moreMenuOpen || inspectorOpen ? 'is-visible' : 'is-hidden'}`}>
           <div className="aw-editor-titleline">
             <button aria-label="Back">‹</button>
             <button aria-label="Forward">›</button>
@@ -1724,13 +1784,6 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
           </aside>
         ) : null}
         <article className="aw-editor">
-          <div className="aw-editor-meta">
-            <div className="aw-save-stack">
-              <span className="aw-status-pill" data-tone={saveState.tone}>{t(saveState.labelKey)}</span>
-              {activeNote ? <small>{formatNoteTime(activeNote.updatedAt)}</small> : null}
-            </div>
-          </div>
-
           {saveState.detailKey ? (
             <div className="aw-inline-alert" role="status" aria-live="polite">
               {t(saveState.detailKey)}
