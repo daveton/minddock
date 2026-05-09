@@ -19,8 +19,11 @@ import {
 } from '../data/repository';
 import type { Note, NoteSummary } from '../data/memory';
 import { analyzeNoteContent, findRelatedNotes } from '../data/knowledgeAnalysis';
+import { checkDataIntegrity } from '../data/integrity';
+import { downloadMarkdownBundle } from '../import-export/bundle';
 import { saveMarkdownFile } from '../import-export/fileSystem';
 import { serializeMarkdown } from '../import-export/markdown';
+import { debounce } from '../utils/debounce';
 
 const bearSections = [
   {
@@ -174,6 +177,7 @@ const translations = {
     saved: 'Saved',
     savedMarkdownDisk: 'Saved to disk',
     savedMarkdownDownload: 'Markdown downloaded',
+    savedBundleDownload: 'Bundle downloaded',
     savingBeforeNewNote: 'Saving before new note',
     savingBeforeSwitch: 'Saving before switch',
     savingLocally: 'Saving locally',
@@ -185,6 +189,10 @@ const translations = {
     workspace: 'Workspace',
     copiedMarkdown: 'Markdown copied',
     exportMarkdown: 'Export Markdown',
+    exportBundle: 'Export Bundle',
+    integrityOk: 'Data healthy',
+    integrityFailed: 'Data check found issues',
+    checkIntegrity: 'Check Data',
     inspectorAi: 'AI',
     inspectorOutline: 'Outline',
     inspectorStats: 'Stats',
@@ -237,6 +245,7 @@ const translations = {
     saved: '已保存',
     savedMarkdownDisk: '已保存到磁盘',
     savedMarkdownDownload: 'Markdown 已下载',
+    savedBundleDownload: 'Bundle 已下载',
     savingBeforeNewNote: '新建前保存中',
     savingBeforeSwitch: '切换前保存中',
     savingLocally: '本地保存中',
@@ -248,6 +257,10 @@ const translations = {
     workspace: '工作区',
     copiedMarkdown: 'Markdown 已复制',
     exportMarkdown: '导出 Markdown',
+    exportBundle: '导出 Bundle',
+    integrityOk: '数据健康',
+    integrityFailed: '数据检查发现问题',
+    checkIntegrity: '检查数据',
     inspectorAi: 'AI',
     inspectorOutline: '大纲',
     inspectorStats: '统计',
@@ -835,6 +848,9 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
     let disposed = false;
     const editor = createEditor(editorHostRef.current);
     editorRef.current = editor;
+    const saveEditorStateDebounced = debounce((noteId: string, selection: { from: number; to: number }, scrollTop: number) => {
+      void saveEditorState(noteId, { selection, scrollTop });
+    }, 500);
 
     const unbind = bindEditorEvents(editor, {
       getNoteId: () => activeNoteIdRef.current ?? '',
@@ -858,13 +874,7 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
 
       const selection = editor.state.selection;
       const scrollTop = getEditorScrollParent(editorHostRef.current)?.scrollTop ?? 0;
-      void saveEditorState(noteId, {
-        selection: {
-          from: selection.from,
-          to: selection.to,
-        },
-        scrollTop,
-      });
+      saveEditorStateDebounced(noteId, { from: selection.from, to: selection.to }, scrollTop);
     };
     editor.on('update', syncActiveContent);
 
@@ -1032,6 +1042,34 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
       } catch {
         setSaveState({ labelKey: 'saveFailed', tone: 'error', detailKey: 'saveFailedDetail' });
       }
+    }
+  };
+
+  const handleExportBundle = async () => {
+    try {
+      if (activeNoteIdRef.current) {
+        await flushActiveNote();
+      }
+
+      await downloadMarkdownBundle();
+      setSaveState({ labelKey: 'savedBundleDownload', tone: 'idle', detailKey: null });
+    } catch {
+      setSaveState({ labelKey: 'saveFailed', tone: 'error', detailKey: 'saveFailedDetail' });
+    }
+  };
+
+  const handleCheckIntegrity = async () => {
+    try {
+      const result = await checkDataIntegrity();
+      if (result.ok) {
+        setSaveState({ labelKey: 'integrityOk', tone: 'idle', detailKey: null });
+        return;
+      }
+
+      console.warn('[DATA_INTEGRITY]', result.issues);
+      setSaveState({ labelKey: 'integrityFailed', tone: 'error', detailKey: null });
+    } catch {
+      setSaveState({ labelKey: 'integrityFailed', tone: 'error', detailKey: null });
     }
   };
 
@@ -1241,6 +1279,8 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
               ⛶
             </button>
             <button aria-label={t('exportMarkdown')} onClick={() => { void handleExportMarkdown(); }}>⇩</button>
+            <button aria-label={t('exportBundle')} onClick={() => { void handleExportBundle(); }}>⤓</button>
+            <button aria-label={t('checkIntegrity')} onClick={() => { void handleCheckIntegrity(); }}>✓</button>
             <button aria-label="More">⋮</button>
           </div>
         </div>
