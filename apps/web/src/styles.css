@@ -704,6 +704,44 @@ button {
     opacity: 0.42;
   }
 
+  .aw-rest-sync-config {
+    display: grid;
+    gap: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.42);
+    padding: 14px;
+  }
+
+  .aw-rest-sync-config label {
+    display: grid;
+    gap: 6px;
+  }
+
+  .aw-rest-sync-config span {
+    color: #777777;
+    font-size: 13px;
+  }
+
+  .aw-rest-sync-config input {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid rgba(0, 0, 0, 0.14);
+    border-radius: 6px;
+    background: #ffffff;
+    color: #2c2c2c;
+    padding: 9px 10px;
+    font: inherit;
+    font-size: 14px;
+  }
+
+  .aw-rest-sync-config button {
+    justify-self: start;
+    min-width: 132px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    background: #ffffff;
+  }
+
   .aw-cloud-sync-status {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr)) auto;

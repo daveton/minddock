@@ -27,8 +27,10 @@ import type { TagNode } from '../data/tagIndex';
 import { analyzeNoteContent, findRelatedNotes } from '../data/knowledgeAnalysis';
 import { checkDataIntegrity } from '../data/integrity';
 import {
+  getRestSyncConfig,
   getSyncStatusSummary,
   processDefaultSyncQueue,
+  setRestSyncConfig,
   type SyncStatusSummary,
 } from '../data/sync';
 import { downloadMarkdownBundle } from '../import-export/bundle';
@@ -119,6 +121,11 @@ type CloudSyncState = {
   summary: SyncStatusSummary;
 };
 
+type RestSyncForm = {
+  endpoint: string;
+  token: string;
+};
+
 type Language = 'en' | 'zh';
 type InspectorTab = 'stats' | 'outline' | 'ai';
 type PreferenceTab = 'general' | 'format' | 'theme' | 'icons' | 'sync';
@@ -178,6 +185,7 @@ const translations = {
     savedMarkdownDisk: 'Saved to disk',
     savedMarkdownDownload: 'Markdown downloaded',
     savedBundleDownload: 'Bundle downloaded',
+    syncConfigSaved: 'Sync config saved',
     syncNow: 'Sync now',
     syncRunning: 'Syncing',
     syncComplete: 'Sync complete',
@@ -252,6 +260,7 @@ const translations = {
     savedMarkdownDisk: '已保存到磁盘',
     savedMarkdownDownload: 'Markdown 已下载',
     savedBundleDownload: 'Bundle 已下载',
+    syncConfigSaved: '同步配置已保存',
     syncNow: '立即同步',
     syncRunning: '同步中',
     syncComplete: '同步完成',
@@ -309,6 +318,14 @@ const emptySyncSummary: SyncStatusSummary = {
   failed: 0,
   openConflicts: 0,
 };
+
+function loadRestSyncForm(): RestSyncForm {
+  const config = getRestSyncConfig();
+  return {
+    endpoint: config.endpoint,
+    token: config.token ?? '',
+  };
+}
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -780,6 +797,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
     lastRunAt: null,
     summary: emptySyncSummary,
   });
+  const [restSyncForm, setRestSyncForm] = useState<RestSyncForm>(loadRestSyncForm);
   const [editorNavbarVisible, setEditorNavbarVisible] = useState(true);
   const [saveState, setSaveState] = useState<SaveState>({
     labelKey: 'loading',
@@ -1422,6 +1440,12 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
     }
   };
 
+  const handleSaveRestSyncConfig = () => {
+    setRestSyncConfig(restSyncForm.endpoint, restSyncForm.token);
+    setRestSyncForm(loadRestSyncForm());
+    setSaveState({ labelKey: 'syncConfigSaved', tone: 'idle', detailKey: null });
+  };
+
   const focusEditor = () => editorRef.current?.chain().focus();
 
   const toggleHeading = () => {
@@ -1664,6 +1688,29 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
                       : '当前浏览器不支持选择文件夹，导出时会使用下载或文件保存对话框。'}
                   </p>
                   <p><strong>当前策略：</strong> {savePreferences.database ? '数据库' : ''}{savePreferences.database && savePreferences.directory ? ' + ' : ''}{savePreferences.directory ? '本地文件夹' : ''}</p>
+                  <div className="aw-rest-sync-config">
+                    <label>
+                      <span>REST 同步地址</span>
+                      <input
+                        onChange={(event) => setRestSyncForm((current) => ({ ...current, endpoint: event.target.value }))}
+                        placeholder="https://nas.example.com/minddock-sync"
+                        type="url"
+                        value={restSyncForm.endpoint}
+                      />
+                    </label>
+                    <label>
+                      <span>访问令牌</span>
+                      <input
+                        onChange={(event) => setRestSyncForm((current) => ({ ...current, token: event.target.value }))}
+                        placeholder="Bearer token"
+                        type="password"
+                        value={restSyncForm.token}
+                      />
+                    </label>
+                    <button onClick={handleSaveRestSyncConfig}>
+                      保存同步配置
+                    </button>
+                  </div>
                   <div className="aw-cloud-sync-status">
                     <div>
                       <span>云端队列</span>

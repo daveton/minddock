@@ -9,6 +9,12 @@ export interface RemoteAdapter {
   pushOperation(operation: OperationEntry): Promise<RemotePushResult>
 }
 
+export type RestRemoteAdapterOptions = {
+  endpoint: string
+  token?: string
+  fetchImpl?: typeof fetch
+}
+
 export type SyncRunResult = {
   synced: number
   conflicts: number
@@ -26,12 +32,41 @@ export type SyncStatusSummary = {
 
 const RETRY_BASE_MS = 5000
 const RETRY_MAX_MS = 5 * 60 * 1000
+const SYNC_ENDPOINT_STORAGE_KEY = 'minddock.sync.rest.endpoint'
+const SYNC_TOKEN_STORAGE_KEY = 'minddock.sync.rest.token'
 const storageProvider = new IndexedDBProvider()
 let defaultRemoteAdapter: RemoteAdapter | null = null
 
 export function processDefaultSyncQueue(limit = 20) {
-  defaultRemoteAdapter ??= new LocalMemoryRemoteAdapter()
+  defaultRemoteAdapter ??= createDefaultRemoteAdapter()
   return processSyncQueue(defaultRemoteAdapter, limit)
+}
+
+export function getRestSyncConfig() {
+  const endpoint = readConfigValue(SYNC_ENDPOINT_STORAGE_KEY, import.meta.env.VITE_SYNC_ENDPOINT)
+  const token = readConfigValue(SYNC_TOKEN_STORAGE_KEY, import.meta.env.VITE_SYNC_TOKEN)
+
+  return {
+    endpoint: endpoint?.trim() ?? '',
+    token: token?.trim() || undefined,
+    configured: Boolean(endpoint?.trim()),
+  }
+}
+
+export function setRestSyncConfig(endpoint: string, token?: string) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.setItem(SYNC_ENDPOINT_STORAGE_KEY, endpoint.trim())
+
+  if (token?.trim()) {
+    window.localStorage.setItem(SYNC_TOKEN_STORAGE_KEY, token.trim())
+  } else {
+    window.localStorage.removeItem(SYNC_TOKEN_STORAGE_KEY)
+  }
+
+  defaultRemoteAdapter = null
 }
 
 export async function getSyncStatusSummary(): Promise<SyncStatusSummary> {
@@ -91,6 +126,41 @@ export class LocalMemoryRemoteAdapter implements RemoteAdapter {
       status: 'accepted',
       remoteVersion: operation.payload.version,
     }
+  }
+}
+
+export class RestRemoteAdapter implements RemoteAdapter {
+  private endpoint: string
+  private token?: string
+  private fetchImpl: typeof fetch
+
+  constructor(options: RestRemoteAdapterOptions) {
+    this.endpoint = options.endpoint.replace(/\/+$/, '')
+    this.token = options.token
+    this.fetchImpl = options.fetchImpl ?? fetch
+  }
+
+  async pushOperation(operation: OperationEntry): Promise<RemotePushResult> {
+    const response = await this.fetchImpl(`${this.endpoint}/operations`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(this.token ? { authorization: `Bearer ${this.token}` } : {}),
+      },
+      body: JSON.stringify({ operation }),
+    })
+
+    const payload = await readJsonResponse(response)
+
+    if (response.status === 409) {
+      return parseConflictResponse(payload)
+    }
+
+    if (!response.ok) {
+      throw new Error(getRemoteError(payload, `Remote sync failed with HTTP ${response.status}`))
+    }
+
+    return parseAcceptedResponse(payload, operation)
   }
 }
 
@@ -177,4 +247,99 @@ function markFailed(entry: SyncQueueEntry, message: string): SyncQueueEntry {
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'Unknown sync error'
+}
+
+function createDefaultRemoteAdapter(): RemoteAdapter {
+  const config = getRestSyncConfig()
+
+  if (!config.configured) {
+    throw new Error('Sync endpoint is not configured')
+  }
+
+  return new RestRemoteAdapter({
+    endpoint: config.endpoint,
+    token: config.token,
+  })
+}
+
+function readConfigValue(storageKey: string, envValue: string | undefined) {
+  if (typeof window !== 'undefined') {
+    const localValue = window.localStorage.getItem(storageKey)
+    if (localValue !== null) {
+      return localValue
+    }
+  }
+
+  return envValue
+}
+
+async function readJsonResponse(response: Response): Promise<unknown> {
+  const text = await response.text()
+
+  if (!text) {
+    return null
+  }
+
+  try {
+    return JSON.parse(text)
+  } catch {
+    throw new Error('Remote sync returned invalid JSON')
+  }
+}
+
+function parseAcceptedResponse(payload: unknown, operation: OperationEntry): RemotePushResult {
+  if (!isRecord(payload)) {
+    return {
+      status: 'accepted',
+      remoteVersion: operation.payload.version,
+    }
+  }
+
+  return {
+    status: 'accepted',
+    remoteVersion: typeof payload.remoteVersion === 'number' ? payload.remoteVersion : operation.payload.version,
+  }
+}
+
+function parseConflictResponse(payload: unknown): RemotePushResult {
+  if (!isRecord(payload) || !isOperationEntry(payload.remoteOperation)) {
+    throw new Error('Remote conflict response is missing remoteOperation')
+  }
+
+  return {
+    status: 'conflict',
+    remoteOperation: payload.remoteOperation,
+    remoteVersion:
+      typeof payload.remoteVersion === 'number'
+        ? payload.remoteVersion
+        : payload.remoteOperation.payload.version,
+  }
+}
+
+function getRemoteError(payload: unknown, fallback: string) {
+  if (isRecord(payload) && typeof payload.error === 'string') {
+    return payload.error
+  }
+
+  return fallback
+}
+
+function isOperationEntry(value: unknown): value is OperationEntry {
+  if (!isRecord(value) || !isRecord(value.payload)) {
+    return false
+  }
+
+  return (
+    typeof value.id === 'string' &&
+    typeof value.docId === 'string' &&
+    value.type === 'document.upsert' &&
+    typeof value.payload.markdown === 'string' &&
+    isRecord(value.payload.content) &&
+    typeof value.payload.version === 'number' &&
+    typeof value.createdAt === 'number'
+  )
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
 }
