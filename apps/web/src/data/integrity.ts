@@ -10,12 +10,15 @@ const storageProvider = new IndexedDBProvider()
 
 export async function checkDataIntegrity(): Promise<IntegrityCheckResult> {
   const issues: string[] = []
-  const [documents, blocks, operations] = await Promise.all([
+  const [documents, blocks, operations, syncQueue, conflictRecords] = await Promise.all([
     storageProvider.list(),
     storageProvider.listBlocks(),
     storageProvider.listOperations(),
+    storageProvider.loadSyncQueue([]),
+    storageProvider.loadConflictRecords(),
   ])
   const documentIds = new Set(documents.map((document) => document.id))
+  const operationIds = new Set(operations.map((operation) => operation.id))
 
   for (const document of documents) {
     const normalized = normalizeDocument(document.content)
@@ -46,6 +49,26 @@ export async function checkDataIntegrity(): Promise<IntegrityCheckResult> {
     const normalized = normalizeDocument(operation.payload.content)
     if (normalized.repaired) {
       issues.push(`operation:${operation.id}:payload_requires_repair`)
+    }
+  }
+
+  for (const entry of syncQueue) {
+    if (!documentIds.has(entry.docId)) {
+      issues.push(`sync_queue:${entry.id}:missing_document:${entry.docId}`)
+    }
+
+    if (!operationIds.has(entry.operationId)) {
+      issues.push(`sync_queue:${entry.id}:missing_operation:${entry.operationId}`)
+    }
+  }
+
+  for (const conflict of conflictRecords) {
+    if (!documentIds.has(conflict.docId)) {
+      issues.push(`conflict:${conflict.id}:missing_document:${conflict.docId}`)
+    }
+
+    if (!operationIds.has(conflict.operationId)) {
+      issues.push(`conflict:${conflict.id}:missing_operation:${conflict.operationId}`)
     }
   }
 

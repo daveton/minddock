@@ -49,6 +49,39 @@ export type OperationEntry = {
 
 export type JournalEntry = OperationEntry
 
+export type SyncQueueStatus = 'pending' | 'syncing' | 'synced' | 'conflict' | 'failed'
+
+export type SyncQueueEntry = {
+  id: string
+  operationId: string
+  docId: string
+  localVersion: number
+  remoteVersion?: number
+  status: SyncQueueStatus
+  attempts: number
+  lastError?: string
+  retryAt?: number
+  createdAt: number
+  updatedAt: number
+  syncedAt?: number
+}
+
+export type ConflictResolution = 'keep-local' | 'accept-remote' | 'copy-remote'
+
+export type ConflictRecord = {
+  id: string
+  operationId: string
+  docId: string
+  localVersion: number
+  remoteVersion: number
+  localOperation: OperationEntry
+  remoteOperation: OperationEntry
+  status: 'open' | 'resolved'
+  resolution?: ConflictResolution
+  createdAt: number
+  resolvedAt?: number
+}
+
 export type EditorSelectionSnapshot = {
   from: number
   to: number

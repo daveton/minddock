@@ -3,7 +3,10 @@ import type {
   EditorStateRecord,
   Note,
   NoteSnapshot,
+  ConflictRecord,
   OperationEntry,
+  SyncQueueEntry,
+  SyncQueueStatus,
   WorkspaceStateRecord,
 } from './memory'
 
@@ -31,6 +34,13 @@ export interface AtomicSnapshotStorageProvider extends StorageProvider, Snapshot
   loadOperations(noteId: string): Promise<OperationEntry[]>
   listOperations(): Promise<OperationEntry[]>
   deleteOperation(id: string): Promise<void>
+  enqueueSyncOperation(entry: SyncQueueEntry): Promise<void>
+  loadSyncQueue(statuses?: SyncQueueStatus[]): Promise<SyncQueueEntry[]>
+  loadSyncQueueEntry(id: string): Promise<SyncQueueEntry | null>
+  updateSyncQueueEntry(entry: SyncQueueEntry): Promise<void>
+  saveConflictRecord(record: ConflictRecord): Promise<void>
+  loadConflictRecords(status?: ConflictRecord['status']): Promise<ConflictRecord[]>
+  updateConflictRecord(record: ConflictRecord): Promise<void>
   loadBlocks(noteId: string): Promise<BlockIndexEntry[]>
   listBlocks(): Promise<BlockIndexEntry[]>
   saveEditorState(state: EditorStateRecord): Promise<void>

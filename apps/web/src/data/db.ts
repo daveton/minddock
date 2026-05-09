@@ -5,7 +5,9 @@ import type {
   EditorStateRecord,
   Note,
   NoteSnapshot,
+  ConflictRecord,
   OperationEntry,
+  SyncQueueEntry,
   WorkspaceStateRecord,
 } from './memory'
 
@@ -40,6 +42,25 @@ interface MindDockDB extends DBSchema {
       'by-created': number
     }
   }
+  sync_queue: {
+    key: string
+    value: SyncQueueEntry
+    indexes: {
+      'by-status': string
+      'by-doc': string
+      'by-operation': string
+      'by-retry': number
+    }
+  }
+  conflict_records: {
+    key: string
+    value: ConflictRecord
+    indexes: {
+      'by-status': string
+      'by-doc': string
+      'by-operation': string
+    }
+  }
   editor_state: {
     key: string
     value: EditorStateRecord
@@ -53,7 +74,7 @@ interface MindDockDB extends DBSchema {
   }
 }
 
-export const dbPromise = openDB<MindDockDB>('minddock', 5, {
+export const dbPromise = openDB<MindDockDB>('minddock', 6, {
   async upgrade(db, oldVersion, _newVersion, transaction) {
     if (oldVersion > 0 && oldVersion < 3) {
       const migrationDb = db as unknown as MigrationDatabase
@@ -81,6 +102,21 @@ export const dbPromise = openDB<MindDockDB>('minddock', 5, {
       const operations = db.createObjectStore('operations', { keyPath: 'id' })
       operations.createIndex('by-doc', 'docId')
       operations.createIndex('by-created', 'createdAt')
+    }
+
+    if (!db.objectStoreNames.contains('sync_queue')) {
+      const syncQueue = db.createObjectStore('sync_queue', { keyPath: 'id' })
+      syncQueue.createIndex('by-status', 'status')
+      syncQueue.createIndex('by-doc', 'docId')
+      syncQueue.createIndex('by-operation', 'operationId')
+      syncQueue.createIndex('by-retry', 'retryAt')
+    }
+
+    if (!db.objectStoreNames.contains('conflict_records')) {
+      const conflictRecords = db.createObjectStore('conflict_records', { keyPath: 'id' })
+      conflictRecords.createIndex('by-status', 'status')
+      conflictRecords.createIndex('by-doc', 'docId')
+      conflictRecords.createIndex('by-operation', 'operationId')
     }
 
     if (!db.objectStoreNames.contains('editor_state')) {
@@ -116,6 +152,31 @@ export const dbPromise = openDB<MindDockDB>('minddock', 5, {
     }
     if (!operations.indexNames.contains('by-created')) {
       operations.createIndex('by-created', 'createdAt')
+    }
+
+    const syncQueue = transaction.objectStore('sync_queue')
+    if (!syncQueue.indexNames.contains('by-status')) {
+      syncQueue.createIndex('by-status', 'status')
+    }
+    if (!syncQueue.indexNames.contains('by-doc')) {
+      syncQueue.createIndex('by-doc', 'docId')
+    }
+    if (!syncQueue.indexNames.contains('by-operation')) {
+      syncQueue.createIndex('by-operation', 'operationId')
+    }
+    if (!syncQueue.indexNames.contains('by-retry')) {
+      syncQueue.createIndex('by-retry', 'retryAt')
+    }
+
+    const conflictRecords = transaction.objectStore('conflict_records')
+    if (!conflictRecords.indexNames.contains('by-status')) {
+      conflictRecords.createIndex('by-status', 'status')
+    }
+    if (!conflictRecords.indexNames.contains('by-doc')) {
+      conflictRecords.createIndex('by-doc', 'docId')
+    }
+    if (!conflictRecords.indexNames.contains('by-operation')) {
+      conflictRecords.createIndex('by-operation', 'operationId')
     }
 
     const editorState = transaction.objectStore('editor_state')
