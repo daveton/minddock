@@ -18,6 +18,13 @@ import {
   sortNotes,
 } from '../data/repository';
 import type { Note, NoteSummary } from '../data/memory';
+import {
+  buildTagIndex,
+  buildTagTreeFromIndex,
+  getNoteTagPaths,
+  noteMatchesTagPath,
+} from '../data/tagIndex';
+import type { TagNode } from '../data/tagIndex';
 import { analyzeNoteContent, findRelatedNotes } from '../data/knowledgeAnalysis';
 import { checkDataIntegrity } from '../data/integrity';
 import { downloadMarkdownBundle } from '../import-export/bundle';
@@ -25,58 +32,6 @@ import { saveMarkdownFile } from '../import-export/fileSystem';
 import { serializeMarkdown } from '../import-export/markdown';
 import { debounce } from '../utils/debounce';
 
-const bearSections = [
-  {
-    id: 'notes',
-    label: '笔记',
-    icon: '▾',
-    items: [
-      { label: '无标签', icon: '▤' },
-      { label: '待办事项', icon: '☑' },
-      { label: '今天', icon: '□' },
-      { label: '已加密', icon: '▢' },
-      { label: '废纸篓', icon: '⌫' },
-    ],
-  },
-  {
-    id: 'personal',
-    label: 'personal',
-    icon: '▾',
-    items: [
-      { label: 'coder', icon: '</>' },
-      { label: 'design', icon: '◢' },
-    ],
-  },
-  {
-    id: 'study',
-    label: 'study',
-    icon: '▾',
-    items: [
-      { label: '高项', icon: '▦' },
-      { label: '工作流', icon: '▤' },
-      { label: '历史', icon: '▾' },
-      { label: '历史故事', icon: '◉', child: true },
-      { label: '清朝', icon: 't', child: true, active: true },
-      { label: '宋朝', icon: '▰', child: true },
-      { label: '唐朝', icon: '▸', child: true },
-      { label: '影视', icon: '◒' },
-      { label: 'aigc', icon: '◇' },
-      { label: 'music', icon: '♪' },
-      { label: 'shorts', icon: '▸' },
-    ],
-  },
-  {
-    id: 'todo',
-    label: 'todo',
-    icon: '▾',
-    items: [
-      { label: '读书', icon: '☍' },
-      { label: '经济学', icon: '$' },
-      { label: '骷髅人', icon: '◌' },
-      { label: '心理学', icon: '◎' },
-    ],
-  },
-];
 const mobileNotes = [
   {
     title: '剃发易服背后的心理统治',
@@ -124,14 +79,6 @@ type SaveState = {
 
 type Language = 'en' | 'zh';
 type InspectorTab = 'stats' | 'outline' | 'ai';
-type TagNode = {
-  id: string;
-  label: string;
-  path: string;
-  count: number;
-  children: TagNode[];
-};
-
 const translations = {
   en: {
     aiCommand: 'AI Command',
@@ -319,6 +266,7 @@ function loadMarkdownSyntaxPreference() {
 
 function getNoteTitle(note: Note | NoteSummary | null, t: (key: I18nKey) => string) {
   if (!note) return t('untitled');
+  if (note.title) return note.title;
 
   const firstText = hasNoteContent(note) ? findFirstText(note.content) : '';
   return firstText || note.id;
@@ -360,95 +308,6 @@ function collectText(value: unknown): string {
   const childText = Array.isArray(node.content) ? node.content.map(collectText).join(' ') : '';
 
   return [ownText, childText].filter(Boolean).join(' ');
-}
-
-function collectTextNodes(value: unknown, texts: string[] = []) {
-  if (!value || typeof value !== 'object') return texts;
-
-  const node = value as { text?: unknown; content?: unknown };
-  if (typeof node.text === 'string') {
-    texts.push(node.text);
-  }
-
-  if (Array.isArray(node.content)) {
-    node.content.forEach((child) => collectTextNodes(child, texts));
-  }
-
-  return texts;
-}
-
-function getNoteTags(note: Note | NoteSummary | null) {
-  if (!note || !hasNoteContent(note)) return [];
-
-  const tags = new Set<string>();
-  const tagPattern = /(?:^|\s)#([\p{L}\p{N}_/-]+)/gu;
-
-  for (const text of collectTextNodes(note.content)) {
-    for (const match of text.matchAll(tagPattern)) {
-      const tag = match[1]
-        ?.split('/')
-        .map((part) => part.trim())
-        .filter(Boolean)
-        .join('/');
-
-      if (tag) {
-        tags.add(tag);
-      }
-    }
-  }
-
-  return Array.from(tags).sort((a, b) => a.localeCompare(b, 'zh-CN'));
-}
-
-function buildTagTree(notes: Note[]) {
-  const roots: TagNode[] = [];
-  const byPath = new Map<string, TagNode>();
-
-  for (const note of notes) {
-    for (const tag of getNoteTags(note)) {
-      const parts = tag.split('/').filter(Boolean);
-      let parent: TagNode | null = null;
-      let path = '';
-
-      for (const part of parts) {
-        path = path ? `${path}/${part}` : part;
-        let node = byPath.get(path);
-
-        if (!node) {
-          node = {
-            id: path,
-            label: part,
-            path,
-            count: 0,
-            children: [],
-          };
-          byPath.set(path, node);
-
-          if (parent) {
-            parent.children.push(node);
-          } else {
-            roots.push(node);
-          }
-        }
-
-        node.count += 1;
-        parent = node;
-      }
-    }
-  }
-
-  const sortTree = (nodes: TagNode[]) => {
-    nodes.sort((a, b) => a.label.localeCompare(b.label, 'zh-CN'));
-    nodes.forEach((node) => sortTree(node.children));
-  };
-
-  sortTree(roots);
-  return roots;
-}
-
-function noteMatchesTag(note: Note, tagPath: string | null) {
-  if (!tagPath) return true;
-  return getNoteTags(note).some((tag) => tag === tagPath || tag.startsWith(`${tagPath}/`));
 }
 
 function formatNoteTime(updatedAt: number) {
@@ -612,8 +471,8 @@ function TagTree({
             style={{ '--tag-depth': depth } as React.CSSProperties}
           >
             <span className="aw-tree-icon">{node.children.length > 0 ? '▾' : '#'}</span>
-            <span>{node.label}</span>
-            <small>{node.count}</small>
+            <span>{node.name}</span>
+            <small>{node.noteCount}</small>
           </button>
           {node.children.length > 0 ? (
             <TagTree
@@ -1124,17 +983,18 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
     () => findRelatedNotes(activeNote, notes),
     [activeNote, notes],
   );
-  const tagTree = useMemo(() => buildTagTree(notes), [notes]);
+  const tagIndex = useMemo(() => buildTagIndex(notes), [notes]);
+  const tagTree = useMemo(() => buildTagTreeFromIndex(tagIndex), [tagIndex]);
   const hasActiveTag = useMemo(() => {
     if (!activeTagPath) return true;
-    return notes.some((note) => noteMatchesTag(note, activeTagPath));
+    return notes.some((note) => noteMatchesTagPath(note, activeTagPath));
   }, [activeTagPath, notes]);
   const effectiveActiveTagPath = hasActiveTag ? activeTagPath : null;
   const filteredNotes = useMemo(
-    () => notes.filter((note) => noteMatchesTag(note, effectiveActiveTagPath)),
+    () => notes.filter((note) => noteMatchesTagPath(note, effectiveActiveTagPath)),
     [effectiveActiveTagPath, notes],
   );
-  const activeTags = getNoteTags(activeNote);
+  const activeTags = getNoteTagPaths(activeNote);
   const listTitle = effectiveActiveTagPath ?? t('allNotes');
 
   return (
@@ -1172,23 +1032,6 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
               </button>
             )}
           </section>
-          {bearSections.map((section) => (
-            <section className="aw-tree-section" key={section.id}>
-              <button className="aw-tree-heading">
-                <span>{section.icon}</span>
-                {section.label}
-              </button>
-              {section.items.map((item) => (
-                <button
-                  className={`${item.active ? 'is-active' : ''} ${item.child ? 'is-child' : ''}`}
-                  key={`${section.id}-${item.label}`}
-                >
-                  <span className="aw-tree-icon">{item.icon}</span>
-                  {item.label}
-                </button>
-              ))}
-            </section>
-          ))}
         </nav>
       </aside>
       <ResizeHandle

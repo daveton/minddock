@@ -213,11 +213,17 @@ export async function ensureDefaultNote() {
 export async function listNotes(): Promise<NoteSummary[]> {
   const notes = await storageProvider.list()
   const drafts = getUnsavedDrafts()
-  const byId = new Map<string, NoteSummary>(notes.map((note) => [note.id, note]))
+  const byId = new Map<string, NoteSummary>(notes.map((note) => [note.id, toNoteSummary(note)]))
 
   for (const draft of drafts) {
+    const draftFields = buildDocumentFields(draft.id, draft.content, null)
     byId.set(draft.id, {
       id: draft.id,
+      title: draftFields.title,
+      markdown: draftFields.markdown,
+      tags: draftFields.tags,
+      metadata: draftFields.metadata,
+      content: draft.content,
       updatedAt: draft.updatedAt,
       localStatus: 'unsaved',
     })
@@ -377,11 +383,23 @@ function buildDocumentFields(
       archived,
     },
     tags: metadata.tags,
-    folderId: existingNote?.folderId,
     pinned,
     archived,
     deleted: existingNote?.deleted,
     snapshotVersion: existingNote?.snapshotVersion ?? version,
+  }
+}
+
+function toNoteSummary(note: Note): NoteSummary {
+  return {
+    id: note.id,
+    title: note.title,
+    markdown: note.markdown,
+    tags: note.tags,
+    metadata: note.metadata,
+    content: note.content,
+    updatedAt: note.updatedAt,
+    localStatus: note.localStatus,
   }
 }
 

@@ -9,7 +9,6 @@ export type DocumentRecord = {
     archived: boolean
   }
   tags: string[]
-  folderId?: string
   pinned?: boolean
   archived?: boolean
   deleted?: boolean
@@ -86,7 +85,7 @@ export type NoteSnapshot = {
   reason: 'save' | 'recovery' | 'repair'
 }
 
-export type NoteSummary = Pick<Note, 'id' | 'updatedAt' | 'localStatus'> & {
+export type NoteSummary = Pick<Note, 'id' | 'title' | 'markdown' | 'tags' | 'metadata' | 'updatedAt' | 'localStatus'> & {
   content?: Note['content']
 }
 
