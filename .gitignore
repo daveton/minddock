@@ -2,8 +2,11 @@
 node_modules
 .vite
 dist
+.env
+.env.*
 apps/web/node_modules
 apps/web/dist
+apps/web/src/.env.local
 node_modules
 *.tsbuildinfo
 apps/web/vite.config.js
