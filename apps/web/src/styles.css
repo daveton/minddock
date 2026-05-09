@@ -922,10 +922,12 @@ button {
   .aw-editor-meta {
     display: flex;
     align-items: flex-start;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: var(--space-5);
     border-bottom: 0;
     padding-bottom: 0;
+    min-height: 0;
+    pointer-events: none;
   }
 
   .aw-save-stack {
@@ -935,6 +937,7 @@ button {
     flex: 0 0 auto;
     opacity: 0.46;
     transition: opacity 140ms;
+    pointer-events: auto;
   }
 
   .aw-editor-meta:hover .aw-save-stack {
@@ -979,7 +982,7 @@ button {
   }
 
   .aw-editor-host {
-    margin-top: 44px;
+    margin-top: 0;
   }
 
   .minddock-editor {
@@ -1011,6 +1014,25 @@ button {
     cursor: grab;
     font-size: 18px;
     line-height: 1;
+  }
+
+  .minddock-tag {
+    display: inline-block;
+    height: 30px;
+    border-radius: 999px;
+    background: #ecece8;
+    color: #666666;
+    padding: 0 var(--space-3);
+    font-size: 0.88em;
+    font-weight: 500;
+    line-height: 30px;
+    vertical-align: baseline;
+    white-space: nowrap;
+  }
+
+  .minddock-tag:hover {
+    background: #dedede;
+    color: #555555;
   }
 
   .minddock-editor p,

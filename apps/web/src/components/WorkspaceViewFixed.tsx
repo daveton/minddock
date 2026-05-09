@@ -21,7 +21,6 @@ import type { Note, NoteSummary } from '../data/memory';
 import {
   buildTagIndex,
   buildTagTreeFromIndex,
-  getNoteTagPaths,
   noteMatchesTagPath,
 } from '../data/tagIndex';
 import type { TagNode } from '../data/tagIndex';
@@ -988,7 +987,14 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
   };
 
   const insertTag = () => {
-    focusEditor()?.insertContent('#标签 ').run();
+    focusEditor()
+      ?.insertContent({
+        type: 'text',
+        text: '#标签',
+        marks: [{ type: 'tag', attrs: { path: '标签' } }],
+      })
+      .insertContent(' ')
+      .run();
   };
 
   const insertMention = () => {
@@ -1027,7 +1033,6 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
     () => notes.filter((note) => noteMatchesTagPath(note, effectiveActiveTagPath)),
     [effectiveActiveTagPath, notes],
   );
-  const activeTags = getNoteTagPaths(activeNote);
   const listTitle = effectiveActiveTagPath ?? t('allNotes');
 
   return (
@@ -1320,16 +1325,6 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
         ) : null}
         <article className="aw-editor">
           <div className="aw-editor-meta">
-            <div>
-              <h1>{activeTitle}</h1>
-              <div className="aw-tag-row">
-                {(activeTags.length > 0 ? activeTags : ['study/历史/清朝']).map((tag) => (
-                  <button key={tag} onClick={() => setActiveTagPath(tag)}>
-                    #{tag}
-                  </button>
-                ))}
-              </div>
-            </div>
             <div className="aw-save-stack">
               <span className="aw-status-pill" data-tone={saveState.tone}>{t(saveState.labelKey)}</span>
               {activeNote ? <small>{formatNoteTime(activeNote.updatedAt)}</small> : null}

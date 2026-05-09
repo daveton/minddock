@@ -85,6 +85,8 @@ function applyMarks(text: string, marks: NonNullable<ProseMirrorNode['marks']>) 
         const href = typeof mark.attrs?.href === 'string' ? mark.attrs.href : ''
         return href ? `[${current}](${href})` : current
       }
+      case 'tag':
+        return current
       default:
         return current
     }

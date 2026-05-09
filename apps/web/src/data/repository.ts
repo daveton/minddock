@@ -186,11 +186,12 @@ export async function ensureDefaultNote() {
       type: 'doc',
       content: [
         {
-          type: 'paragraph',
+          type: 'heading',
+          attrs: { level: 1 },
           content: [
             {
               type: 'text',
-              text: 'Start typing. The editor saves to IndexedDB after 300ms.',
+              text: 'Start typing',
             },
           ],
         },
@@ -244,7 +245,8 @@ export async function createNote() {
       type: 'doc',
       content: [
         {
-          type: 'paragraph',
+          type: 'heading',
+          attrs: { level: 1 },
         },
       ],
     }).document, null),

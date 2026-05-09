@@ -3,6 +3,7 @@ export type ProseMirrorNode = {
   attrs?: Record<string, unknown> | null
   content?: ProseMirrorNode[]
   text?: string
+  marks?: Array<{ type?: string; attrs?: Record<string, unknown> | null }>
   [key: string]: unknown
 }
 
@@ -72,7 +73,7 @@ export function extractDocumentMetadata(document: Record<string, unknown>): Docu
   const textNodes = collectTextNodes(root)
   const heading = findFirstHeading(root)
   const title = heading || textNodes.find((text) => text.trim())?.trim().slice(0, 80) || 'Untitled'
-  const tags = collectTags(textNodes)
+  const tags = collectTags(root, textNodes)
 
   return { title, tags }
 }
@@ -182,13 +183,14 @@ function findFirstHeading(node: ProseMirrorNode | null | undefined): string {
   return ''
 }
 
-function collectTags(textNodes: string[]) {
+function collectTags(root: ProseMirrorNode, textNodes: string[]) {
   const tags = new Set<string>()
-  const tagPattern = /(?:^|\s)#([\p{L}\p{N}_/-]+)/gu
+  collectTagMarks(root, tags)
 
+  const tagPattern = /(?:^|\s)#([\p{L}\p{N}_/-]+)/gu
   for (const text of textNodes) {
     for (const match of text.matchAll(tagPattern)) {
-      const tag = match[1]?.trim()
+      const tag = normalizeTagPath(match[1] ?? '')
       if (tag) {
         tags.add(tag)
       }
@@ -196,6 +198,33 @@ function collectTags(textNodes: string[]) {
   }
 
   return Array.from(tags).sort((a, b) => a.localeCompare(b, 'zh-CN'))
+}
+
+function collectTagMarks(node: ProseMirrorNode | null | undefined, tags: Set<string>) {
+  if (!node) {
+    return
+  }
+
+  for (const mark of node.marks ?? []) {
+    if (mark.type !== 'tag') {
+      continue
+    }
+
+    const path = typeof mark.attrs?.path === 'string' ? normalizeTagPath(mark.attrs.path) : ''
+    if (path) {
+      tags.add(path)
+    }
+  }
+
+  node.content?.forEach((child) => collectTagMarks(child, tags))
+}
+
+function normalizeTagPath(value: string) {
+  return value
+    .split('/')
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .join('/')
 }
 
 function isNode(value: unknown): value is ProseMirrorNode {
