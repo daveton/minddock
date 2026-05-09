@@ -63,3 +63,85 @@ npm run build
 - `docs/ROADMAP.md`：阶段路线图。
 - `docs/ARCHITECTURE.md`：实现边界和架构取舍。
 - `docs/DESKTOP_APP.md`：Tauri、SQLite、Markdown Folder 和 Release 路线。
+
+根据 Bear 的设计逻辑和你现有的应用方向（Web + Desktop + Local-First 编辑器），可以梳理出一套 **核心快捷键体系**，分为几大类：编辑器操作、笔记管理、导航、UI 控制、辅助功能。这里参考 Bear macOS 版行为，并结合 Web/Desktop 可实现性。
+
+---
+
+# 一、编辑器操作
+
+| 功能               | Windows / Linux             | macOS                     | 说明                                |
+| ---------------- | --------------------------- | ------------------------- | --------------------------------- |
+| **新建笔记**         | Ctrl + N                    | Cmd + N                   | 新建一篇笔记，焦点自动在标题                    |
+| **删除笔记**         | Ctrl + Backspace            | Cmd + Backspace           | 删除当前笔记，弹出确认                       |
+| **切换笔记**         | Ctrl + ↑ / ↓                | Cmd + ↑ / ↓               | 上下切换 Note List 的笔记                |
+| **保存**           | Ctrl + S                    | Cmd + S                   | 手动保存（IndexedDB + snapshot + 本地文件） |
+| **撤销 / 重做**      | Ctrl + Z / Ctrl + Shift + Z | Cmd + Z / Cmd + Shift + Z | 编辑器内 Undo / Redo                  |
+| **加粗 / 斜体 / 代码** | Ctrl + B / I / `            | Cmd + B / I / `           | Markdown 快捷输入                     |
+| **标题**           | Ctrl + 1~6                  | Cmd + 1~6                 | Markdown heading (# ~ ######)     |
+| **引用 / 列表**      | Ctrl + Shift + > / Ctrl + L | Cmd + Shift + > / Cmd + L | Markdown blockquote / list        |
+| **查找**           | Ctrl + F                    | Cmd + F                   | 编辑器内搜索                            |
+| **跳转行**          | Ctrl + G                    | Cmd + G                   | 跳转到某行                             |
+
+---
+
+# 二、笔记管理 / 导航
+
+| 功能                   | Windows / Linux  | macOS            | 说明                      |
+| -------------------- | ---------------- | ---------------- | ----------------------- |
+| **搜索笔记**             | Ctrl + P         | Cmd + P          | 打开全局搜索框                 |
+| **打开 Tag / 目录树**     | Ctrl + T         | Cmd + T          | 快速过滤笔记                  |
+| **收藏 / 取消收藏**        | Ctrl + D         | Cmd + D          | 设置笔记为 Favorite          |
+| **归档 / 恢复**          | Ctrl + Shift + A | Cmd + Shift + A  | Archive / Restore       |
+| **切换 Sidebar 显示**    | Ctrl + \         | Cmd + \          | 显示/隐藏 Sidebar           |
+| **切换 Context Panel** | Ctrl + Shift + C | Cmd + Shift + C  | 显示/隐藏 Context Panel     |
+| **切换 Focus Mode**    | Ctrl + Alt + F   | Cmd + Option + F | 专注模式，隐藏 Sidebar/Context |
+
+---
+
+# 三、布局与窗口控制（Desktop 特有）
+
+| 功能                  | Windows / Linux | macOS          | 说明                                   |
+| ------------------- | --------------- | -------------- | ------------------------------------ |
+| **全屏 / 离焦模式**       | F11 / Ctrl + M  | Cmd + Ctrl + F | 全屏模式，隐藏浏览器栏                          |
+| **调整 Sidebar 宽度**   | Alt + 鼠标拖       | Option + 鼠标拖   | 支持拖拽调整宽度                             |
+| **调整 Note List 宽度** | Alt + 鼠标拖       | Option + 鼠标拖   | 同上                                   |
+| **打开设置面板**          | Ctrl + ,        | Cmd + ,        | 打开 Editor / Appearance / Behavior 设置 |
+
+---
+
+# 四、块级操作（Block-level）
+
+| 功能           | Windows / Linux      | macOS               | 说明                                    |
+| ------------ | -------------------- | ------------------- | ------------------------------------- |
+| **移动块**      | Ctrl + Shift + ↑ / ↓ | Cmd + Shift + ↑ / ↓ | 上下移动选中块                               |
+| **折叠 / 展开块** | Ctrl + - / +         | Cmd + - / +         | Block collapse / expand               |
+| **复制 / 剪切块** | Ctrl + C / X         | Cmd + C / X         | 复制或剪切选中块                              |
+| **粘贴块**      | Ctrl + V             | Cmd + V             | 粘贴到光标处                                |
+| **AI 操作块**   | Ctrl + Enter         | Cmd + Enter         | 调出 AI 功能弹窗（Summarize / Expand / Link） |
+
+---
+
+# 五、文件 / 导出快捷键
+
+| 功能              | Windows / Linux  | macOS            | 说明                                                |
+| --------------- | ---------------- | ---------------- | ------------------------------------------------- |
+| **导出 Markdown** | Ctrl + Shift + E | Cmd + Shift + E  | 单篇笔记导出 Markdown                                   |
+| **导出 Bundle**   | Ctrl + Alt + E   | Cmd + Option + E | 导出 Markdown + attachments + metadata + operations |
+| **导入 Bundle**   | Ctrl + Shift + I | Cmd + Shift + I  | 从导入的 Bundle 重建数据库和 block                          |
+
+---
+
+# 六、设计原则
+
+1. **一致性**：所有快捷键遵循 macOS / Windows 原生习惯。
+2. **可组合**：块操作可在编辑器内嵌套组合。
+3. **实时生效**：Focus Mode / Sidebar / Context 切换实时更新，无需刷新。
+4. **可扩展**：未来可加 AI inline 操作快捷键、标签快速创建快捷键。
+5. **辅助提示**：所有快捷键在菜单或悬浮提示显示（Tooltip / Shortcut Helper）。
+
+---
+
+如果你需要，我可以帮你生成一份**“MindDock Bear 风格快捷键全表”**，可以直接放在设置面板里供用户查阅，同时支持自定义快捷键映射。
+
+你希望我帮你生成吗？
