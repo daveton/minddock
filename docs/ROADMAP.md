@@ -13,12 +13,16 @@
 
 目标：在不损伤输入性能的前提下，把精修后的工作台接回本地 Hybrid Markdown 编辑器和数据层。
 
+状态：进行中，核心闭环已接入。
+
 完成标准：
 
-- 笔记创建、编辑、切换、删除、恢复都在本地可用。
-- TipTap / ProseMirror 作为编辑器内核接入当前工作台。
+- 笔记创建、编辑、切换、恢复都在本地可用。
+- TipTap / ProseMirror 作为编辑器内核接入当前工作台。已完成。
 - 文档模型确定为 Hybrid Block Document：普通 Markdown 语义 + 稳定 block id / type / metadata。
 - 支持基础 Markdown input rules：标题、列表、引用、代码块、加粗。
+- 支持 Bear 风格 inline tag token：`#tag/path` 可编辑、可删除、可派生 sidebar tree。已完成最小版本。
+- 支持当前 tag 目录中新建文档时自动写入当前 tag。已完成。
 - 中文 IME 输入稳定，composition 期间不误触发转换。
 - 不做实时全文 Markdown 解析；只允许当前 block 增量解析和延迟 normalization。
 - IndexedDB 仍然是本地主数据源。
@@ -57,7 +61,8 @@
 范围：
 
 - 块级 Markdown 结构识别。
-- 标签。
+- 标签即目录：tag path parser、tag index、sidebar tree projection。
+- 无标签文档入口。
 - 搜索优先：标题、正文、标签、block 内容先可用。
 - 键盘优先导航。
 - 基于真实本地数据的相关笔记区域。

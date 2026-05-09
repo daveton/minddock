@@ -110,6 +110,26 @@ MindDock 是 **AI Native Local Knowledge Workspace**，不是多人协作文档�
 - 可从损坏 snapshot 中尽量修复。
 - 保留 block 顺序与必要元信息。
 
+## 4.2 标签即目录约束
+
+MindDock 的目录树是 tag projection，不是数据真源。
+
+禁止：
+
+- 给文档新增 `folderId`、`parentFolderId` 作为主组织字段。
+- 让用户手动维护 sidebar tree。
+- 把 tag 只做成外部 badge 或独立表单，而不写入正文语义。
+- 在输入关键路径中全文扫描 Markdown 来实时重建目录树。
+
+必须：
+
+- 标签存在于正文中，形式为 `#name` 或 `#name/sub/name`。
+- 标题来自第一个 heading，`title` 只是派生缓存。
+- Sidebar tree 由 documents -> tags -> tag index 派生。
+- tag 文本被编辑后，派生 path 必须跟随当前文本更新。
+- tag 被删除或不再以 `#` 开头时，文档必须从对应目录中移出。
+- 当前目录中新建文档时，只能通过在新文档正文写入当前 tag 来归类，不得写 folder 字段。
+
 ---
 
 ## 5. 阶段 Gate 约束

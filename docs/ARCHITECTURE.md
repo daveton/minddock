@@ -88,6 +88,54 @@ Document
 
 每个 block 必须有稳定 id、明确类型、可序列化、可恢复。每个 document 必须可序列化、可恢复、可导出 Markdown。
 
+## Bear 风格知识组织模型
+
+MindDock 当前采用 Bear 风格的核心组织原则：
+
+```text
+标签即目录
+文档即数据库
+树结构是派生视图
+```
+
+系统没有真实 folder source of truth。禁止新增 `folderId`、`parentFolderId` 作为主组织模型。
+
+真正的 source of truth 是：
+
+```text
+ProseMirror JSON / Markdown semantics
+  -> heading
+  -> inline tag token
+  -> block attrs
+```
+
+标题不是独立可编辑字段。标题来自正文中的第一个 heading，`Document.title` 只是派生缓存，用于列表、搜索和导出。
+
+标签不是外部管理表单。标签是正文中的 inline semantic token：
+
+```markdown
+#study/历史/清朝
+```
+
+编辑器中 tag 由 TipTap mark 渲染为胶囊视觉，但它仍然是正文语义。用户可以把光标移入 tag 内部编辑，系统会根据当前文本同步 tag `path`。如果 tag 不再以 `#` 开头，则退回普通文本，并从文档标签索引中移除。
+
+Sidebar tree 只能由 tag index 派生：
+
+```text
+documents
+  -> tags
+  -> tag index
+  -> sidebar tree
+```
+
+当前目录下新建文档时，Repository 会把当前选中的 tag path 写入新文档正文，例如：
+
+```markdown
+#study/历史/清朝
+```
+
+新文档仍然没有 folder 字段。它之所以出现在当前目录，是因为正文里包含该 tag。
+
 ## 主数据格式
 
 不要把 HTML 作为主数据。
@@ -190,7 +238,7 @@ Layer 2: append-only local snapshot / journal
 
 ## 当前产品表面
 
-当前 UI 刻意保持扁平：
+当前 UI 仍然刻意保持扁平：
 
 ```text
 main.tsx
@@ -200,19 +248,22 @@ main.tsx
 
 这样做的目的，是让原型容易理解、容易修改，并避免未使用的组件抽象继续拖慢产品迭代。
 
-## 保留的本地优先基础
+## 当前本地优先编辑闭环
 
-本地优先编辑器基础仍然保留，供下一轮接入真实功能：
+当前工作台已经接入真实 TipTap 编辑器和本地 Repository：
 
 ```text
-ui/EditorView.tsx
+WorkspaceViewFixed.tsx
   -> editor/setup.ts
+    -> StarterKit
+    -> TaskItem
+    -> Tag
   -> editor/events.ts
   -> data/repository.ts
   -> data/db.ts
 ```
 
-重新接入时必须遵守：
+继续迭代时必须遵守：
 
 - 不在 `keydown -> transaction` 输入关键路径中访问存储。
 - 不在中文输入 composition 过程中触发 Markdown 自动转换。
@@ -223,4 +274,4 @@ ui/EditorView.tsx
 
 ## 当前取舍
 
-当前应用优先保留一个干净、可运行、可展示的产品界面，而不是保留多个半集成的旧版本。下一步应谨慎把真实编辑和数据能力接回来，而不是重新堆出新的实验分支。
+当前应用优先保留一个干净、可运行、可编辑、可本地保存的产品界面，而不是保留多个半集成的旧版本。下一步应围绕现有 TipTap / Repository / tag index 闭环继续加可靠性和交互细节，不重新堆出新的实验分支。
