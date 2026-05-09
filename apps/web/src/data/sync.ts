@@ -15,9 +15,40 @@ export type SyncRunResult = {
   failed: number
 }
 
+export type SyncStatusSummary = {
+  pending: number
+  syncing: number
+  synced: number
+  conflicts: number
+  failed: number
+  openConflicts: number
+}
+
 const RETRY_BASE_MS = 5000
 const RETRY_MAX_MS = 5 * 60 * 1000
 const storageProvider = new IndexedDBProvider()
+let defaultRemoteAdapter: RemoteAdapter | null = null
+
+export function processDefaultSyncQueue(limit = 20) {
+  defaultRemoteAdapter ??= new LocalMemoryRemoteAdapter()
+  return processSyncQueue(defaultRemoteAdapter, limit)
+}
+
+export async function getSyncStatusSummary(): Promise<SyncStatusSummary> {
+  const [queue, conflicts] = await Promise.all([
+    storageProvider.loadSyncQueue([]),
+    storageProvider.loadConflictRecords('open'),
+  ])
+
+  return {
+    pending: queue.filter((entry) => entry.status === 'pending').length,
+    syncing: queue.filter((entry) => entry.status === 'syncing').length,
+    synced: queue.filter((entry) => entry.status === 'synced').length,
+    conflicts: queue.filter((entry) => entry.status === 'conflict').length,
+    failed: queue.filter((entry) => entry.status === 'failed').length,
+    openConflicts: conflicts.length,
+  }
+}
 
 export async function processSyncQueue(adapter: RemoteAdapter, limit = 20): Promise<SyncRunResult> {
   const now = Date.now()

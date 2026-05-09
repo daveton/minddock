@@ -26,6 +26,11 @@ import {
 import type { TagNode } from '../data/tagIndex';
 import { analyzeNoteContent, findRelatedNotes } from '../data/knowledgeAnalysis';
 import { checkDataIntegrity } from '../data/integrity';
+import {
+  getSyncStatusSummary,
+  processDefaultSyncQueue,
+  type SyncStatusSummary,
+} from '../data/sync';
 import { downloadMarkdownBundle } from '../import-export/bundle';
 import {
   chooseMarkdownDirectory,
@@ -80,6 +85,7 @@ const LINE_HEIGHT_DEFAULT = 1.92;
 const LINE_HEIGHT_MIN = 1.6;
 const LINE_HEIGHT_MAX = 2.15;
 const DIRECTORY_SYNC_INTERVAL_MS = 2000;
+const CLOUD_SYNC_INTERVAL_MS = 15000;
 
 type WorkspaceLayout = {
   sidebarWidth: number;
@@ -105,6 +111,12 @@ type SavePreferences = {
   database: boolean;
   directory: boolean;
   directoryTree: boolean;
+};
+
+type CloudSyncState = {
+  running: boolean;
+  lastRunAt: number | null;
+  summary: SyncStatusSummary;
 };
 
 type Language = 'en' | 'zh';
@@ -166,6 +178,10 @@ const translations = {
     savedMarkdownDisk: 'Saved to disk',
     savedMarkdownDownload: 'Markdown downloaded',
     savedBundleDownload: 'Bundle downloaded',
+    syncNow: 'Sync now',
+    syncRunning: 'Syncing',
+    syncComplete: 'Sync complete',
+    syncFailed: 'Sync failed',
     savingBeforeNewNote: 'Saving before new note',
     savingBeforeSwitch: 'Saving before switch',
     savingLocally: 'Saving locally',
@@ -236,6 +252,10 @@ const translations = {
     savedMarkdownDisk: '已保存到磁盘',
     savedMarkdownDownload: 'Markdown 已下载',
     savedBundleDownload: 'Bundle 已下载',
+    syncNow: '立即同步',
+    syncRunning: '同步中',
+    syncComplete: '同步完成',
+    syncFailed: '同步失败',
     savingBeforeNewNote: '新建前保存中',
     savingBeforeSwitch: '切换前保存中',
     savingLocally: '本地保存中',
@@ -279,6 +299,15 @@ const defaultSavePreferences: SavePreferences = {
   database: true,
   directory: false,
   directoryTree: false,
+};
+
+const emptySyncSummary: SyncStatusSummary = {
+  pending: 0,
+  syncing: 0,
+  synced: 0,
+  conflicts: 0,
+  failed: 0,
+  openConflicts: 0,
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -746,6 +775,11 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
   const [markdownDirectoryName, setMarkdownDirectoryName] = useState(getMarkdownDirectoryName);
   const [lastMarkdownPath, setLastMarkdownPath] = useState<string | null>(null);
   const [savePreferences, setSavePreferences] = useState<SavePreferences>(() => savePreferencesRef.current);
+  const [cloudSyncState, setCloudSyncState] = useState<CloudSyncState>({
+    running: false,
+    lastRunAt: null,
+    summary: emptySyncSummary,
+  });
   const [editorNavbarVisible, setEditorNavbarVisible] = useState(true);
   const [saveState, setSaveState] = useState<SaveState>({
     labelKey: 'loading',
@@ -846,6 +880,58 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
   useEffect(() => {
     window.localStorage.setItem(MARKDOWN_SYNTAX_STORAGE_KEY, String(showMarkdownSyntax));
   }, [showMarkdownSyntax]);
+
+  const refreshSyncSummary = useCallback(async () => {
+    const summary = await getSyncStatusSummary();
+    setCloudSyncState((current) => ({ ...current, summary }));
+    return summary;
+  }, []);
+
+  const runCloudSync = useCallback(async () => {
+    setCloudSyncState((current) => ({ ...current, running: true }));
+
+    try {
+      await processDefaultSyncQueue();
+      const summary = await getSyncStatusSummary();
+      setCloudSyncState({
+        running: false,
+        lastRunAt: Date.now(),
+        summary,
+      });
+      return summary;
+    } catch {
+      setCloudSyncState((current) => ({
+        ...current,
+        running: false,
+        lastRunAt: Date.now(),
+      }));
+      throw new Error('Cloud sync failed');
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshSyncSummary();
+
+    const interval = window.setInterval(() => {
+      if (navigator.onLine) {
+        void runCloudSync().catch(() => {
+          setSaveState({ labelKey: 'syncFailed', tone: 'error', detailKey: null });
+        });
+      }
+    }, CLOUD_SYNC_INTERVAL_MS);
+
+    const handleOnline = () => {
+      void runCloudSync().catch(() => {
+        setSaveState({ labelKey: 'syncFailed', tone: 'error', detailKey: null });
+      });
+    };
+
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [refreshSyncSummary, runCloudSync]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -1026,6 +1112,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
       onSaving: () => setSaveState({ labelKey: 'savingLocally', tone: 'live', detailKey: null }),
       onSaved: async () => {
         void syncActiveNoteToDirectory('throttled');
+        void refreshSyncSummary();
         setSaveState({ labelKey: 'saved', tone: 'idle', detailKey: null });
         await refreshNotes(activeNoteIdRef.current ?? undefined, { promoteId: activeNoteIdRef.current ?? undefined });
       },
@@ -1073,7 +1160,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
         directorySyncTimerRef.current = null;
       }
     };
-  }, [refreshNotes, setEditorContent, syncActiveNoteToDirectory]);
+  }, [refreshNotes, refreshSyncSummary, setEditorContent, syncActiveNoteToDirectory]);
 
   const resizeSidebar = useCallback((delta: number) => {
     setLayout((current) =>
@@ -1320,6 +1407,21 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
     }
   };
 
+  const handleManualCloudSync = async () => {
+    try {
+      setSaveState({ labelKey: 'syncRunning', tone: 'live', detailKey: null });
+      await flushActiveNote();
+      const summary = await runCloudSync();
+      setSaveState(
+        summary.failed > 0 || summary.openConflicts > 0
+          ? { labelKey: 'syncFailed', tone: 'error', detailKey: null }
+          : { labelKey: 'syncComplete', tone: 'idle', detailKey: null },
+      );
+    } catch {
+      setSaveState({ labelKey: 'syncFailed', tone: 'error', detailKey: null });
+    }
+  };
+
   const focusEditor = () => editorRef.current?.chain().focus();
 
   const toggleHeading = () => {
@@ -1562,6 +1664,25 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
                       : '当前浏览器不支持选择文件夹，导出时会使用下载或文件保存对话框。'}
                   </p>
                   <p><strong>当前策略：</strong> {savePreferences.database ? '数据库' : ''}{savePreferences.database && savePreferences.directory ? ' + ' : ''}{savePreferences.directory ? '本地文件夹' : ''}</p>
+                  <div className="aw-cloud-sync-status">
+                    <div>
+                      <span>云端队列</span>
+                      <strong>
+                        {cloudSyncState.summary.pending + cloudSyncState.summary.failed} 待处理
+                      </strong>
+                    </div>
+                    <div>
+                      <span>冲突</span>
+                      <strong>{cloudSyncState.summary.openConflicts}</strong>
+                    </div>
+                    <div>
+                      <span>失败</span>
+                      <strong>{cloudSyncState.summary.failed}</strong>
+                    </div>
+                    <button disabled={cloudSyncState.running} onClick={() => { void handleManualCloudSync(); }}>
+                      {cloudSyncState.running ? t('syncRunning') : t('syncNow')}
+                    </button>
+                  </div>
                 </section>
               ) : null}
             </div>
