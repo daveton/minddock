@@ -1324,15 +1324,6 @@ button {
     font-weight: 700;
   }
 
-  .minddock-editor h1,
-  .minddock-editor h2,
-  .minddock-editor h3,
-  .minddock-editor h4,
-  .minddock-editor h5,
-  .minddock-editor h6 {
-    padding-left: 42px;
-  }
-
   .minddock-editor h1 {
     margin: 2px 0 30px;
     font-size: 36px;
@@ -1378,7 +1369,7 @@ button {
 
   .minddock-heading-trigger {
     position: absolute;
-    left: 0;
+    left: -50px;
     top: 0.12em;
     display: grid;
     width: 28px;
