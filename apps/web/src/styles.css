@@ -583,29 +583,6 @@ button {
     line-height: 1.55;
   }
 
-  .aw-window-dots {
-    display: flex;
-    gap: 10px;
-  }
-
-  .aw-window-dots span {
-    width: 15px;
-    height: 15px;
-    border-radius: 50%;
-  }
-
-  .aw-window-dots span:nth-child(1) {
-    background: #ff5f57;
-  }
-
-  .aw-window-dots span:nth-child(2) {
-    background: #ffbd2e;
-  }
-
-  .aw-window-dots span:nth-child(3) {
-    background: #28c840;
-  }
-
   .aw-sidebar-tune {
     width: 32px;
     height: 32px;

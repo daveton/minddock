@@ -94,6 +94,14 @@ type SaveState = {
 type Language = 'en' | 'zh';
 type InspectorTab = 'stats' | 'outline' | 'ai';
 type PreferenceTab = 'general' | 'format' | 'theme' | 'icons' | 'sync';
+const preferenceTabs: Array<{ id: PreferenceTab; icon: string; label: string }> = [
+  { id: 'general', icon: '☷', label: '通用' },
+  { id: 'format', icon: 'Aᴀ', label: '格式' },
+  { id: 'theme', icon: '▥', label: '主题' },
+  { id: 'icons', icon: '◰', label: '图标' },
+  { id: 'sync', icon: '☁', label: '同步' },
+];
+const themeOptions = ['石墨红', '石墨黑', '石墨蓝', '木炭灰', '光天化日', '月黑风高'];
 const translations = {
   en: {
     aiCommand: 'AI Command',
@@ -277,6 +285,13 @@ function getListMax(layout: Pick<WorkspaceLayout, 'sidebarWidth' | 'contextOpen'
       getAvailableDesktopWidth() - layout.sidebarWidth - getContextWidth(layout) - MAIN_MIN - 2,
     ),
   );
+}
+
+function updateLayout(
+  setLayout: Dispatch<SetStateAction<WorkspaceLayout>>,
+  nextLayout: (current: WorkspaceLayout) => WorkspaceLayout,
+) {
+  setLayout((current) => fitLayoutToViewport(nextLayout(current)));
 }
 
 function fitLayoutToViewport(layout: WorkspaceLayout): WorkspaceLayout {
@@ -715,12 +730,12 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
 
       if (event.key === '.') {
         event.preventDefault();
-        setLayout((current) => ({ ...current, contextOpen: !current.contextOpen, focusMode: false }));
+        updateLayout(setLayout, (current) => ({ ...current, contextOpen: !current.contextOpen, focusMode: false }));
       }
 
       if (event.key === '\\') {
         event.preventDefault();
-        setLayout((current) => ({ ...current, focusMode: !current.focusMode }));
+        updateLayout(setLayout, (current) => ({ ...current, focusMode: !current.focusMode }));
       }
     };
 
@@ -1126,17 +1141,11 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
         {preferencesOpen ? (
           <aside className="aw-preferences" aria-label="Preferences">
             <nav>
-              {[
-                ['general', '☷', '通用'],
-                ['format', 'Aᴀ', '格式'],
-                ['theme', '▥', '主题'],
-                ['icons', '◰', '图标'],
-                ['sync', '☁', '同步'],
-              ].map(([id, icon, label]) => (
+              {preferenceTabs.map(({ id, icon, label }) => (
                 <button
                   className={preferenceTab === id ? 'is-active' : ''}
                   key={id}
-                  onClick={() => setPreferenceTab(id as PreferenceTab)}
+                  onClick={() => setPreferenceTab(id)}
                 >
                   <span>{icon}</span>
                   {label}
@@ -1167,7 +1176,7 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
                       <option value="p">正文</option>
                     </select>
                   </label>
-                  <button onClick={() => setLayout((current) => ({ ...current, focusMode: !current.focusMode }))}>
+                  <button onClick={() => updateLayout(setLayout, (current) => ({ ...current, focusMode: !current.focusMode }))}>
                     打开主窗口 <strong>{layout.focusMode ? '专注中' : '普通'}</strong>
                   </button>
                   <button onClick={() => { void handleCreateNote(); }}>
@@ -1205,7 +1214,7 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
                 <section>
                   <h2>主题</h2>
                   <div className="aw-theme-grid">
-                    {['石墨红', '石墨黑', '石墨蓝', '木炭灰', '光天化日', '月黑风高'].map((theme, index) => (
+                    {themeOptions.map((theme, index) => (
                       <button className={index === 0 ? 'is-active' : ''} key={theme}>
                         <strong>{theme}</strong>
                         <span>Lorem ipsum dolor sit amet, semper pharetra.</span>
@@ -1343,14 +1352,14 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
               aria-label={t('openContext')}
               aria-pressed={layout.contextOpen}
               className={layout.contextOpen ? 'is-active' : ''}
-              onClick={() => setLayout((current) => ({ ...current, contextOpen: !current.contextOpen, focusMode: false }))}
+              onClick={() => updateLayout(setLayout, (current) => ({ ...current, contextOpen: !current.contextOpen, focusMode: false }))}
             >
               ◫
             </button>
             <button
               aria-label={t('focusMode')}
               className={layout.focusMode ? 'is-active' : ''}
-              onClick={() => setLayout((current) => ({ ...current, focusMode: !current.focusMode }))}
+              onClick={() => updateLayout(setLayout, (current) => ({ ...current, focusMode: !current.focusMode }))}
             >
               ⛶
             </button>
@@ -1371,7 +1380,7 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
             <button role="menuitem" onClick={() => { void handleExportMarkdown(); setMoreMenuOpen(false); }}>导出笔记...</button>
             <button role="menuitem" onClick={() => { void handleExportBundle(); setMoreMenuOpen(false); }}>导出资料包...</button>
             <button role="menuitem" onClick={() => { void handleCheckIntegrity(); setMoreMenuOpen(false); }}>切换数据</button>
-            <button role="menuitem" onClick={() => setLayout((current) => ({ ...current, contextOpen: !current.contextOpen }))}>显示/隐藏浏览导航</button>
+            <button role="menuitem" onClick={() => updateLayout(setLayout, (current) => ({ ...current, contextOpen: !current.contextOpen }))}>显示/隐藏浏览导航</button>
             <button role="menuitem">删除</button>
             <button role="menuitem">归档</button>
             <button role="menuitem">加密与锁定</button>
