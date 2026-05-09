@@ -1169,15 +1169,16 @@ button {
   }
 
   .minddock-tag {
-    display: inline-block;
-    height: 30px;
+    display: inline;
     border-radius: 999px;
     background: #ecece8;
     color: #666666;
-    padding: 0 var(--space-3);
+    padding: 0.16em 0.58em;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
     font-size: 0.88em;
     font-weight: 500;
-    line-height: 30px;
+    line-height: inherit;
     vertical-align: baseline;
     white-space: nowrap;
   }

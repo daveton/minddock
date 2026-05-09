@@ -59,6 +59,8 @@ const SIDEBAR_MIN = 220;
 const SIDEBAR_MAX = 1200;
 const LIST_MIN = 260;
 const LIST_MAX = 1600;
+const MAIN_MIN = 520;
+const CONTEXT_WIDTH = 320;
 const EDITOR_WIDTH_DEFAULT = 720;
 const EDITOR_WIDTH_MIN = 580;
 const EDITOR_WIDTH_MAX = 1800;
@@ -249,6 +251,54 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
+function getAvailableDesktopWidth() {
+  return typeof window === 'undefined' ? 1440 : window.innerWidth;
+}
+
+function getContextWidth(layout: Pick<WorkspaceLayout, 'contextOpen' | 'focusMode'>) {
+  return layout.contextOpen && !layout.focusMode ? CONTEXT_WIDTH : 0;
+}
+
+function getSidebarMax(layout: Pick<WorkspaceLayout, 'listWidth' | 'contextOpen' | 'focusMode'>) {
+  return Math.max(
+    SIDEBAR_MIN,
+    Math.min(
+      SIDEBAR_MAX,
+      getAvailableDesktopWidth() - layout.listWidth - getContextWidth(layout) - MAIN_MIN - 2,
+    ),
+  );
+}
+
+function getListMax(layout: Pick<WorkspaceLayout, 'sidebarWidth' | 'contextOpen' | 'focusMode'>) {
+  return Math.max(
+    LIST_MIN,
+    Math.min(
+      LIST_MAX,
+      getAvailableDesktopWidth() - layout.sidebarWidth - getContextWidth(layout) - MAIN_MIN - 2,
+    ),
+  );
+}
+
+function fitLayoutToViewport(layout: WorkspaceLayout): WorkspaceLayout {
+  let sidebarWidth = clamp(layout.sidebarWidth, SIDEBAR_MIN, SIDEBAR_MAX);
+  let listWidth = clamp(layout.listWidth, LIST_MIN, LIST_MAX);
+  const contextWidth = getContextWidth(layout);
+  const availableForSidebarAndList = getAvailableDesktopWidth() - contextWidth - MAIN_MIN - 2;
+
+  if (!layout.focusMode && availableForSidebarAndList < sidebarWidth + listWidth) {
+    const overflow = sidebarWidth + listWidth - availableForSidebarAndList;
+    const listShrink = Math.min(overflow, Math.max(0, listWidth - LIST_MIN));
+    listWidth -= listShrink;
+    sidebarWidth -= Math.min(overflow - listShrink, Math.max(0, sidebarWidth - SIDEBAR_MIN));
+  }
+
+  return {
+    ...layout,
+    sidebarWidth: clamp(sidebarWidth, SIDEBAR_MIN, SIDEBAR_MAX),
+    listWidth: clamp(listWidth, LIST_MIN, LIST_MAX),
+  };
+}
+
 function loadLayout(): WorkspaceLayout {
   if (typeof window === 'undefined') return defaultLayout;
 
@@ -257,7 +307,7 @@ function loadLayout(): WorkspaceLayout {
     if (!saved) return defaultLayout;
     const parsed = JSON.parse(saved) as Partial<WorkspaceLayout>;
 
-    return {
+    return fitLayoutToViewport({
       sidebarWidth: clamp(parsed.sidebarWidth ?? SIDEBAR_DEFAULT, SIDEBAR_MIN, SIDEBAR_MAX),
       listWidth: clamp(parsed.listWidth ?? LIST_DEFAULT, LIST_MIN, LIST_MAX),
       editorWidth: clamp(parsed.editorWidth ?? EDITOR_WIDTH_DEFAULT, EDITOR_WIDTH_MIN, EDITOR_WIDTH_MAX),
@@ -267,7 +317,7 @@ function loadLayout(): WorkspaceLayout {
       focusMode: parsed.focusMode ?? defaultLayout.focusMode,
       compactMode: parsed.compactMode ?? defaultLayout.compactMode,
       theme: 'light',
-    };
+    });
   } catch {
     return defaultLayout;
   }
@@ -441,10 +491,12 @@ function ResizeHandle({ label, resetLabel, onDrag, onReset }: { label: string; r
   const handlePointerDown = useCallback(
     (event: React.PointerEvent<HTMLButtonElement>) => {
       event.preventDefault();
-      const startX = event.clientX;
+      let previousX = event.clientX;
 
       const handlePointerMove = (moveEvent: PointerEvent) => {
-        onDrag(moveEvent.clientX - startX);
+        const delta = moveEvent.clientX - previousX;
+        previousX = moveEvent.clientX;
+        onDrag(delta);
       };
 
       const handlePointerUp = () => {
@@ -626,7 +678,7 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
     void loadWorkspaceState(WORKSPACE_STATE_ID).then((saved) => {
       if (!saved || disposed) return;
 
-      setLayout({
+      setLayout(fitLayoutToViewport({
         sidebarWidth: clamp(saved.sidebarWidth, SIDEBAR_MIN, SIDEBAR_MAX),
         listWidth: clamp(saved.listWidth, LIST_MIN, LIST_MAX),
         editorWidth: clamp(saved.editorWidth ?? EDITOR_WIDTH_DEFAULT, EDITOR_WIDTH_MIN, EDITOR_WIDTH_MAX),
@@ -636,12 +688,21 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
         theme: 'light',
         focusMode: saved.focusMode,
         compactMode: saved.compactMode ?? false,
-      });
+      }));
     });
 
     return () => {
       disposed = true;
     };
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setLayout((current) => fitLayoutToViewport(current));
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   useEffect(() => {
@@ -799,17 +860,21 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
   }, [refreshNotes, setEditorContent]);
 
   const resizeSidebar = useCallback((delta: number) => {
-    setLayout((current) => ({
-      ...current,
-      sidebarWidth: clamp(current.sidebarWidth + delta, SIDEBAR_MIN, SIDEBAR_MAX),
-    }));
+    setLayout((current) =>
+      fitLayoutToViewport({
+        ...current,
+        sidebarWidth: clamp(current.sidebarWidth + delta, SIDEBAR_MIN, getSidebarMax(current)),
+      }),
+    );
   }, []);
 
   const resizeList = useCallback((delta: number) => {
-    setLayout((current) => ({
-      ...current,
-      listWidth: clamp(current.listWidth + delta, LIST_MIN, LIST_MAX),
-    }));
+    setLayout((current) =>
+      fitLayoutToViewport({
+        ...current,
+        listWidth: clamp(current.listWidth + delta, LIST_MIN, getListMax(current)),
+      }),
+    );
   }, []);
 
   const workspaceStyle = useMemo(
@@ -817,7 +882,7 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
       ({
         '--sidebar-width': layout.focusMode ? '0px' : `${layout.sidebarWidth}px`,
         '--list-width': layout.focusMode ? '0px' : `${layout.listWidth}px`,
-        '--context-width': layout.contextOpen && !layout.focusMode ? '320px' : '0px',
+        '--context-width': `${getContextWidth(layout)}px`,
         '--editor-width': `${layout.editorWidth}px`,
         '--editor-font-size': `${layout.fontSize}px`,
         '--editor-line-height': layout.lineHeight,

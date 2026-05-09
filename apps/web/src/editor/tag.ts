@@ -6,7 +6,7 @@ const TAG_PATTERN = /(?:^|\s)(#[\p{L}\p{N}_/-]+)\s$/u
 export const Tag = Mark.create({
   name: 'tag',
 
-  inclusive: false,
+  inclusive: true,
 
   addAttributes() {
     return {
