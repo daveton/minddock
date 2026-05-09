@@ -1600,10 +1600,12 @@ function DesktopWorkspace({ t }: { t: (key: I18nKey) => string }) {
     <div className={`aw-desktop ${layout.contextOpen ? 'has-context' : ''} ${layout.focusMode ? 'is-focus-mode' : ''} ${showMarkdownSyntax ? 'show-markdown-syntax' : ''}`} style={workspaceStyle}>
       <aside className="aw-sidebar">
         <div className="aw-sidebar__brand">
-          <div className="aw-window-controls" aria-hidden="true">
-            <span />
-            <span />
-            <span />
+          <div className="aw-brand-logo">
+            <img src="/logo.JPG" alt="MindDock Logo" className="aw-logo-image" />
+            <div className="aw-brand-text">
+              <div className="aw-brand-name">MindDock</div>
+              <div className="aw-brand-subtitle">AI Knowledge</div>
+            </div>
           </div>
           <button
             className="aw-settings-button"

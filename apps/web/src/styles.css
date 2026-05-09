@@ -2186,24 +2186,37 @@ button {
     padding: 0 28px;
   }
 
-  .aw-window-controls {
+  .aw-brand-logo {
     display: flex;
+    align-items: center;
     gap: 12px;
+    flex: 1;
   }
 
-  .aw-window-controls span {
-    width: 17px;
-    height: 17px;
-    border-radius: 50%;
-    background: #ff5f57;
+  .aw-logo-image {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    object-fit: cover;
   }
 
-  .aw-window-controls span:nth-child(2) {
-    background: #febc2e;
+  .aw-brand-text {
+    display: flex;
+    flex-direction: column;
   }
 
-  .aw-window-controls span:nth-child(3) {
-    background: #28c840;
+  .aw-brand-name {
+    font-size: 18px;
+    font-weight: 760;
+    color: #c7c9c9;
+    line-height: 1.2;
+  }
+
+  .aw-brand-subtitle {
+    font-size: 14px;
+    color: #aeb2b2;
+    font-weight: 400;
+    line-height: 1.2;
   }
 
   .aw-settings-button {
