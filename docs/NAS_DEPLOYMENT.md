@@ -3,8 +3,9 @@
 MindDock is a static Vite app. The simplest NAS deployment is:
 
 1. Build a Docker image with Node.
-2. Serve the generated `dist` folder with Nginx.
-3. Point Cloudflare Tunnel to the NAS service at `http://localhost:18080`.
+2. Build the generated `dist` folder.
+3. Serve it with Vite preview inside the container.
+4. Point Cloudflare Tunnel to the NAS service at `http://localhost:3344`.
 
 ## Deploy On NAS
 
@@ -17,7 +18,7 @@ docker compose up -d --build
 The app will listen on:
 
 ```text
-http://NAS_IP:18080
+http://NAS_IP:3344
 ```
 
 ## Cloudflare Tunnel Route
@@ -31,13 +32,13 @@ minddock.daveton.top
 Set the tunnel service target to:
 
 ```text
-http://localhost:18080
+http://localhost:3344
 ```
 
 If `cloudflared` runs on another machine instead of the NAS, use the NAS LAN IP:
 
 ```text
-http://NAS_IP:18080
+http://NAS_IP:3344
 ```
 
 ## Update Deployment

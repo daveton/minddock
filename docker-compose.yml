@@ -6,4 +6,4 @@ services:
     container_name: minddock-web
     restart: unless-stopped
     ports:
-      - "18080:80"
+      - "3344:4173"
