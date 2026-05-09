@@ -660,20 +660,6 @@ button {
     opacity: 0.42;
   }
 
-  .aw-sidebar-tune {
-    width: 32px;
-    height: 32px;
-    border-radius: var(--radius-control);
-    background: transparent;
-    color: rgba(199, 203, 202, 0.58);
-    cursor: pointer;
-    font-size: 24px;
-  }
-
-  .aw-sidebar-tune:hover {
-    color: #ffffff;
-  }
-
   .aw-space-list,
   .aw-note-list__items {
     display: grid;
@@ -1212,6 +1198,8 @@ button {
 
   .minddock-editor {
     min-height: 58vh;
+    max-width: var(--editor-width);
+    margin: 0 auto;
     outline: 0;
     color: #3c3c3c;
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
@@ -1268,7 +1256,7 @@ button {
   .minddock-editor blockquote,
   .minddock-editor pre,
   .minddock-task-item {
-    margin: 0 0 18px;
+    margin: 0 0 16px;
   }
 
   .minddock-editor ul,
@@ -1282,17 +1270,19 @@ button {
 
   .minddock-task-item {
     display: grid;
-    grid-template-columns: 26px minmax(0, 1fr);
+    grid-template-columns: 30px minmax(0, 1fr);
     align-items: start;
-    gap: 10px;
-    color: #3c3c3c;
+    gap: 12px;
+    color: #777777;
+    font-size: var(--editor-font-size);
+    line-height: var(--editor-line-height);
   }
 
   .minddock-task-box {
     position: relative;
     width: 22px;
     height: 22px;
-    margin-top: 7px;
+    margin-top: 6px;
     border: 1px solid rgba(0, 0, 0, 0.15);
     border-radius: 7px;
     background: #ffffff;
@@ -1317,6 +1307,11 @@ button {
 
   .minddock-task-content {
     min-width: 0;
+  }
+
+  .minddock-task-content strong {
+    color: #666666;
+    font-weight: 760;
   }
 
   .minddock-editor h1,

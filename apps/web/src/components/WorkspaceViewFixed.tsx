@@ -740,7 +740,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
   const [activeContent, setActiveContent] = useState<Record<string, unknown> | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('stats');
-  const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const [preferencesOpen] = useState(false);
   const [preferenceTab, setPreferenceTab] = useState<PreferenceTab>('general');
   const [markdownDirectoryName, setMarkdownDirectoryName] = useState(getMarkdownDirectoryName);
   const [lastMarkdownPath, setLastMarkdownPath] = useState<string | null>(null);
@@ -1365,14 +1365,6 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
       <aside className="aw-sidebar">
         <div className="aw-sidebar__brand">
           <img className="aw-sidebar-logo" src="/logo.JPG" alt={t('brand')} />
-          <button
-            className="aw-sidebar-tune"
-            aria-label="Sidebar settings"
-            aria-expanded={preferencesOpen}
-            onClick={() => setPreferencesOpen((current) => !current)}
-          >
-            ☷
-          </button>
         </div>
         {preferencesOpen ? (
           <aside className="aw-preferences" aria-label="Preferences">

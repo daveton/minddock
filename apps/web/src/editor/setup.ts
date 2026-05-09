@@ -5,6 +5,7 @@ import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
 import TableRow from '@tiptap/extension-table-row'
 import { HeadingControls } from './headingControls'
+import { MarkdownPaste } from './markdownPaste'
 import { TableControls } from './tableControls'
 import { Tag } from './tag'
 import { TaskItem } from './taskItem'
@@ -23,6 +24,7 @@ export function createEditor(element: HTMLElement) {
       TableRow,
       TableHeader,
       TableCell,
+      MarkdownPaste,
       HeadingControls,
       TableControls,
     ],
