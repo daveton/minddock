@@ -18,35 +18,173 @@
   --aw-line: rgba(0, 0, 0, 0.06);
   --border-light: rgba(0, 0, 0, 0.06);
   --border-ultra-light: rgba(0, 0, 0, 0.04);
-  --aw-strong-line: rgba(0, 0, 0, 0.15);
-  --aw-green: #4d6f61;
-  --aw-blue: #315f8c;
-  --aw-clay: #a75f3b;
-  --aw-accent: #e84e55;
-  --aw-black: #121312;
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
-  --space-7: 48px;
-  --radius-control: 10px;
-  --radius-panel: 22px;
-  --motion-fast: 120ms ease;
-  --editor-width: 720px;
-  --editor-font-size: 17px;
-  --editor-line-height: 1.92;
-  --editor-gutter-left: 72px;
-  --editor-gutter-right: 120px;
-  --sidebar-width: 260px;
-  --list-width: 320px;
-  --context-width: 0px;
-  font-family: "BearSansUI-Regular", -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", Inter, ui-sans-serif, sans-serif;
-  background: var(--aw-bg);
-  color: var(--aw-ink);
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+  
+  /* 基于Bear报告优化的字体系统 */
+  --font-family-ui: 'BearSansUI', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  --font-family-mono: 'RobotoMono', 'OpenDyslexicMono', 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
+  --font-family-heading: 'BearSansUIHeading', 'BearSansUI', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  --font-family-accessible: 'OpenDyslexic', 'OpenDyslexicMono', sans-serif;
+  
+  /* 字体特性优化 */
+  --font-smoothing: antialiased;
+  --font-kerning: normal;
+  --font-ligatures: common-ligatures;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --aw-bg: #1c1c1e;
+    --bg-app: #1c1c1e;
+    --bg-editor: #1c1c1e;
+    --bg-sidebar: #2c2c2e;
+    --bg-note-list: #252527;
+    --aw-panel: #2c2c2e;
+    --aw-glass: rgba(44, 44, 46, 0.72);
+    --aw-panel-muted: #3a3a3c;
+    --aw-note-list-bg: var(--bg-note-list);
+    --aw-ink: #ffffff;
+    --text-primary: #ffffff;
+    --text-secondary: #a1a1a6;
+    --text-tertiary: #8e8e93;
+    --aw-soft-ink: #a1a1a6;
+    --aw-faint-ink: #8e8e93;
+    --aw-line: rgba(255, 255, 255, 0.08);
+    --border-light: rgba(255, 255, 255, 0.08);
+    --border-ultra-light: rgba(255, 255, 255, 0.05);
+  }
+}
+
+/* Bear字体系统 - 基于Bear应用报告 */
+@font-face {
+  font-family: 'BearSansUI';
+  src: url('/BearSansUI-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BearSansUI';
+  src: url('/BearSansUI-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BearSansUI';
+  src: url('/BearSansUI-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BearSansUI';
+  src: url('/BearSansUI-Italic.otf') format('opentype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BearSansUI';
+  src: url('/BearSansUI-MediumItalic.otf') format('opentype');
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BearSansUI';
+  src: url('/BearSansUI-BoldItalic.otf') format('opentype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Bear标题字体 */
+@font-face {
+  font-family: 'BearSansUIHeading';
+  src: url('/BearSansUIHeading-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BearSansUIHeading';
+  src: url('/BearSansUIHeading-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BearSansUIHeading';
+  src: url('/BearSansUIHeading-RegularItalic.otf') format('opentype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BearSansUIHeading';
+  src: url('/BearSansUIHeading-BoldItalic.otf') format('opentype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* 等宽字体 */
+@font-face {
+  font-family: 'RobotoMono';
+  src: url('/RobotoMono-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: optional;
+}
+
+@font-face {
+  font-family: 'OpenDyslexicMono';
+  src: url('/OpenDyslexicMono-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 可访问性字体 */
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('/OpenDyslexic-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('/OpenDyslexic-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('/OpenDyslexic-Italic.otf') format('opentype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('/OpenDyslexic-BoldItalic.otf') format('opentype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
 }
 
 * {
@@ -468,9 +606,13 @@ button {
     border-radius: 18px;
     background: rgba(246, 248, 255, 0.72);
     color: var(--text-primary);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 26px 70px rgba(43, 57, 90, 0.25);
-    transform: translateX(-50%);
-    backdrop-filter: blur(28px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+    font-family: var(--font-family-ui);
+    font-feature-settings: 'kern' 1;
+    -webkit-font-smoothing: var(--font-smoothing);
   }
 
   .aw-inline-icon {
@@ -909,6 +1051,9 @@ button {
 
   .aw-note-list__header {
     background: rgba(245, 245, 243, 0.92);
+    font-family: var(--font-family-ui);
+    font-feature-settings: 'kern' 1;
+    -webkit-font-smoothing: var(--font-smoothing);
   }
 
   .aw-note-list header strong,
@@ -926,13 +1071,19 @@ button {
     position: relative;
     display: flex;
     flex-direction: column;
-    min-height: 120px;
-    border-bottom: 1px solid var(--border-ultra-light);
-    border-radius: 0;
+    align-items: flex-start;
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    border: 0;
     background: transparent;
-    padding: 18px 20px;
     text-align: left;
     cursor: pointer;
+    font-family: var(--font-family-ui);
+    font-feature-settings: 'kern' 1;
+    -webkit-font-smoothing: var(--font-smoothing);
+    transition: all 0.15s ease;
+    border-radius: 6px;
+    margin: 2px 4px;
   }
 
   .aw-note-list__items .is-active {
@@ -963,12 +1114,14 @@ button {
     display: -webkit-box;
     overflow: hidden;
     color: #2b2b2b;
-    font-size: 17px;
+    font-size: 15px;
     font-weight: 600;
     line-height: 1.4;
-    letter-spacing: 0;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
+    font-family: var(--font-family-ui);
+    font-feature-settings: 'kern' 1;
+    -webkit-font-smoothing: var(--font-smoothing);
   }
 
   .aw-note-list__title-row {
@@ -1098,7 +1251,11 @@ button {
 
   .aw-editor-tools button {
     font-size: 18px;
-    font-weight: 760;
+    font-weight: 600;
+    font-family: var(--font-family-ui);
+    font-feature-settings: 'kern' 1;
+    -webkit-font-smoothing: var(--font-smoothing);
+    transition: all 0.15s ease;
   }
 
   .aw-editor-tools .aw-biu-toggle {
@@ -1119,6 +1276,7 @@ button {
     background: rgba(0, 0, 0, 0.045);
     color: #4d4d4d;
     opacity: 1;
+    transform: scale(1.05);
   }
 
   .aw-stat-popover-overlay {
@@ -1143,7 +1301,11 @@ button {
     background: rgba(255, 255, 255, 0.96);
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.2);
     padding: 18px;
-    backdrop-filter: blur(22px);
+    font-family: var(--font-family-ui);
+    font-feature-settings: 'kern' 1;
+    -webkit-font-smoothing: var(--font-smoothing);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
   }
 
   .aw-more-menu {
@@ -1385,11 +1547,14 @@ button {
     margin: 0 auto;
     outline: 0;
     color: #3c3c3c;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
-    font-size: var(--editor-font-size);
+    font-family: var(--font-family-ui);
+    line-height: 1.6;
+    font-feature-settings: 'kern' 1, 'liga' 1;
+    -webkit-font-smoothing: var(--font-smoothing);
+    -moz-osx-font-smoothing: grayscale;
     font-weight: 400;
-    line-height: var(--editor-line-height);
     letter-spacing: 0;
+    font-size: var(--editor-font-size);
   }
 
   .minddock-editor > *:first-child {
@@ -1848,13 +2013,31 @@ button {
   }
 
   .minddock-editor pre {
-    overflow: auto;
-    border-radius: 8px;
-    background: #1f211f;
-    color: white;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
     padding: 16px;
+    overflow-x: auto;
+    font-family: var(--font-family-mono);
     font-size: 14px;
-    line-height: 1.7;
+    line-height: 1.5;
+    font-feature-settings: 'liga' 0;
+    -webkit-font-smoothing: var(--font-smoothing);
+  }
+
+  .minddock-editor code {
+    font-family: var(--font-family-mono);
+    font-size: 0.9em;
+    background: rgba(0, 0, 0, 0.05);
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-feature-settings: 'liga' 0;
+  }
+
+  .minddock-editor pre code {
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
   }
 
   .aw-tag-row {
@@ -2203,6 +2386,10 @@ button {
   .aw-sidebar__brand {
     height: 60px;
     padding: 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   .aw-brand-logo {
@@ -2226,9 +2413,12 @@ button {
 
   .aw-brand-name {
     font-size: 16px;
-    font-weight: 760;
+    font-weight: 600;
     color: #c7c9c9;
     line-height: 1.2;
+    font-family: var(--font-family-heading);
+    font-feature-settings: 'kern' 1;
+    -webkit-font-smoothing: var(--font-smoothing);
   }
 
   .aw-brand-subtitle {
@@ -2236,6 +2426,8 @@ button {
     color: #aeb2b2;
     font-weight: 400;
     line-height: 1.2;
+    font-family: var(--font-family-ui);
+    letter-spacing: 0.5px;
   }
 
   .aw-settings-button {
@@ -2258,7 +2450,11 @@ button {
     color: #d2d3d3;
     padding: 0 14px;
     font-size: 15px;
-    font-weight: 650;
+    font-weight: 500;
+    font-family: var(--font-family-ui);
+    font-feature-settings: 'kern' 1;
+    -webkit-font-smoothing: var(--font-smoothing);
+    transition: all 0.15s ease;
   }
 
   .aw-space-list button.is-child {
