@@ -56,12 +56,12 @@ const MARKDOWN_SYNTAX_STORAGE_KEY = 'minddock.workspace.markdown-syntax.v1';
 const SIDEBAR_DEFAULT = 260;
 const LIST_DEFAULT = 320;
 const SIDEBAR_MIN = 220;
-const SIDEBAR_MAX = 320;
+const SIDEBAR_MAX = 1200;
 const LIST_MIN = 260;
-const LIST_MAX = 420;
+const LIST_MAX = 1600;
 const EDITOR_WIDTH_DEFAULT = 720;
 const EDITOR_WIDTH_MIN = 580;
-const EDITOR_WIDTH_MAX = 820;
+const EDITOR_WIDTH_MAX = 1800;
 const FONT_SIZE_DEFAULT = 17;
 const FONT_SIZE_MIN = 15;
 const FONT_SIZE_MAX = 20;
@@ -91,6 +91,7 @@ type SaveState = {
 
 type Language = 'en' | 'zh';
 type InspectorTab = 'stats' | 'outline' | 'ai';
+type PreferenceTab = 'general' | 'format' | 'theme' | 'icons' | 'sync';
 const translations = {
   en: {
     aiCommand: 'AI Command',
@@ -584,6 +585,7 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
   const [layout, setLayout] = useState<WorkspaceLayout>(loadLayout);
   const [showMarkdownSyntax, setShowMarkdownSyntax] = useState(loadMarkdownSyntaxPreference);
   const [formatToolbarOpen, setFormatToolbarOpen] = useState(true);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [activeTagPath, setActiveTagPath] = useState<string | null>('study/历史/清朝');
   const editorHostRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<Editor | null>(null);
@@ -595,6 +597,7 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('stats');
   const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const [preferenceTab, setPreferenceTab] = useState<PreferenceTab>('general');
   const [saveState, setSaveState] = useState<SaveState>({
     labelKey: 'loading',
     tone: 'live',
@@ -1046,11 +1049,6 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
     <div className={`aw-desktop ${layout.contextOpen ? 'has-context' : ''} ${layout.focusMode ? 'is-focus-mode' : ''} ${showMarkdownSyntax ? 'show-markdown-syntax' : ''}`} style={workspaceStyle}>
       <aside className="aw-sidebar">
         <div className="aw-sidebar__brand">
-          <div className="aw-window-dots" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </div>
           <button
             className="aw-sidebar-tune"
             aria-label="Sidebar settings"
@@ -1063,75 +1061,113 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
         {preferencesOpen ? (
           <aside className="aw-preferences" aria-label="Preferences">
             <nav>
-              <button className="is-active">Editor</button>
-              <button>Appearance</button>
-              <button>Behavior</button>
+              {[
+                ['general', '☷', '通用'],
+                ['format', 'Aᴀ', '格式'],
+                ['theme', '▥', '主题'],
+                ['icons', '◰', '图标'],
+                ['sync', '☁', '同步'],
+              ].map(([id, icon, label]) => (
+                <button
+                  className={preferenceTab === id ? 'is-active' : ''}
+                  key={id}
+                  onClick={() => setPreferenceTab(id as PreferenceTab)}
+                >
+                  <span>{icon}</span>
+                  {label}
+                </button>
+              ))}
             </nav>
             <div className="aw-preferences__body">
-              <section>
-                <h2>Editor</h2>
-                <label>
-                  <span>Font Size</span>
-                  <input
-                    min={FONT_SIZE_MIN}
-                    max={FONT_SIZE_MAX}
-                    type="range"
-                    value={layout.fontSize}
-                    onChange={(event) => setLayout((current) => ({ ...current, fontSize: Number(event.target.value) }))}
-                  />
-                  <strong>{layout.fontSize}px</strong>
-                </label>
-                <label>
-                  <span>Line Height</span>
-                  <input
-                    max={LINE_HEIGHT_MAX}
-                    min={LINE_HEIGHT_MIN}
-                    step="0.05"
-                    type="range"
-                    value={layout.lineHeight}
-                    onChange={(event) => setLayout((current) => ({ ...current, lineHeight: Number(event.target.value) }))}
-                  />
-                  <strong>{layout.lineHeight.toFixed(2)}</strong>
-                </label>
-                <label>
-                  <span>Editor Width</span>
-                  <input
-                    max={EDITOR_WIDTH_MAX}
-                    min={EDITOR_WIDTH_MIN}
-                    step="20"
-                    type="range"
-                    value={layout.editorWidth}
-                    onChange={(event) => setLayout((current) => ({ ...current, editorWidth: Number(event.target.value) }))}
-                  />
-                  <strong>{layout.editorWidth}px</strong>
-                </label>
-              </section>
-              <section>
-                <h2>Appearance</h2>
-                <button onClick={() => setLayout((current) => ({ ...current, focusMode: !current.focusMode }))}>
-                  Focus Mode <strong>{layout.focusMode ? 'On' : 'Off'}</strong>
-                </button>
-                <button onClick={() => setShowMarkdownSyntax((current) => !current)}>
-                  Markdown <strong>{showMarkdownSyntax ? 'On' : 'Off'}</strong>
-                </button>
-                <button onClick={() => setLayout((current) => ({ ...current, compactMode: !current.compactMode }))}>
-                  Compact Mode <strong>{layout.compactMode ? 'On' : 'Off'}</strong>
-                </button>
-                <button
-                  onClick={() =>
-                    setLayout((current) => ({
-                      ...current,
-                      sidebarWidth: SIDEBAR_DEFAULT,
-                      listWidth: LIST_DEFAULT,
-                      editorWidth: EDITOR_WIDTH_DEFAULT,
-                      fontSize: FONT_SIZE_DEFAULT,
-                      lineHeight: LINE_HEIGHT_DEFAULT,
-                    }))
-                  }
-                >
-                  Reset Layout <strong>Default</strong>
-                </button>
-              </section>
+              {preferenceTab === 'general' ? (
+                <section>
+                  <h2>通用</h2>
+                  <label className="aw-check-row">
+                    <input checked={!showMarkdownSyntax} onChange={() => setShowMarkdownSyntax(false)} type="checkbox" />
+                    <span>隐藏 Markdown 符号</span>
+                  </label>
+                  <label className="aw-check-row">
+                    <input defaultChecked type="checkbox" />
+                    <span>粘贴网址时自动填写标题</span>
+                  </label>
+                  <label className="aw-check-row">
+                    <input defaultChecked type="checkbox" />
+                    <span>自动完成标签、维基链接、表情符号</span>
+                  </label>
+                  <label className="aw-select-row">
+                    <span>新笔记开头使用</span>
+                    <select defaultValue="h1">
+                      <option value="h1">一级标题</option>
+                      <option value="h2">二级标题</option>
+                      <option value="p">正文</option>
+                    </select>
+                  </label>
+                  <button onClick={() => setLayout((current) => ({ ...current, focusMode: !current.focusMode }))}>
+                    打开主窗口 <strong>{layout.focusMode ? '专注中' : '普通'}</strong>
+                  </button>
+                  <button onClick={() => { void handleCreateNote(); }}>
+                    创建新笔记 <strong>立即</strong>
+                  </button>
+                </section>
+              ) : null}
+              {preferenceTab === 'format' ? (
+                <section>
+                  <h2>格式</h2>
+                  <div className="aw-font-row"><button>Aa</button><span>BearSansUI-Regular</span></div>
+                  <div className="aw-font-row"><button>Aa</button><strong>BearSansUIHeading-Regular</strong></div>
+                  <div className="aw-font-row"><button>Aa</button><code>RobotoMono-Regular</code></div>
+                  <label>
+                    <span>字体大小</span>
+                    <input min={FONT_SIZE_MIN} max={FONT_SIZE_MAX} type="range" value={layout.fontSize} onChange={(event) => setLayout((current) => ({ ...current, fontSize: Number(event.target.value) }))} />
+                    <strong>{layout.fontSize} pt</strong>
+                  </label>
+                  <label>
+                    <span>行高</span>
+                    <input max={LINE_HEIGHT_MAX} min={LINE_HEIGHT_MIN} step="0.05" type="range" value={layout.lineHeight} onChange={(event) => setLayout((current) => ({ ...current, lineHeight: Number(event.target.value) }))} />
+                    <strong>{layout.lineHeight.toFixed(2)} em</strong>
+                  </label>
+                  <label>
+                    <span>行宽</span>
+                    <input max={EDITOR_WIDTH_MAX} min={EDITOR_WIDTH_MIN} step="20" type="range" value={layout.editorWidth} onChange={(event) => setLayout((current) => ({ ...current, editorWidth: Number(event.target.value) }))} />
+                    <strong>{layout.editorWidth}px</strong>
+                  </label>
+                  <button onClick={() => setLayout((current) => ({ ...current, editorWidth: EDITOR_WIDTH_DEFAULT, fontSize: FONT_SIZE_DEFAULT, lineHeight: LINE_HEIGHT_DEFAULT }))}>
+                    恢复编辑器默认值
+                  </button>
+                </section>
+              ) : null}
+              {preferenceTab === 'theme' ? (
+                <section>
+                  <h2>主题</h2>
+                  <div className="aw-theme-grid">
+                    {['石墨红', '石墨黑', '石墨蓝', '木炭灰', '光天化日', '月黑风高'].map((theme, index) => (
+                      <button className={index === 0 ? 'is-active' : ''} key={theme}>
+                        <strong>{theme}</strong>
+                        <span>Lorem ipsum dolor sit amet, semper pharetra.</span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+              {preferenceTab === 'icons' ? (
+                <section>
+                  <h2>图标</h2>
+                  <button>笔记分类图标 <strong>默认</strong></button>
+                  <button>标签图标 <strong>自动</strong></button>
+                  <button>恢复图标默认值</button>
+                </section>
+              ) : null}
+              {preferenceTab === 'sync' ? (
+                <section className="aw-sync-panel">
+                  <h2>同步</h2>
+                  <label className="aw-check-row">
+                    <input defaultChecked type="checkbox" />
+                    <span>iCloud 同步</span>
+                  </label>
+                  <p><strong>上次同步：</strong> 永不</p>
+                  <p>在这个设备上禁用同步功能，不会在其他设备上禁用。</p>
+                </section>
+              ) : null}
             </div>
           </aside>
         ) : null}
@@ -1208,9 +1244,14 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
             <strong>{activeTitle}</strong>
           </div>
           <div className="aw-editor-tools">
-            <button aria-label="Bold">B</button>
-            <button aria-label="Italic"><em>I</em></button>
-            <button aria-label="Underline"><u>U</u></button>
+            <button
+              aria-label={formatToolbarOpen ? '隐藏功能区' : '显示功能区'}
+              aria-expanded={formatToolbarOpen}
+              className={formatToolbarOpen ? 'is-active aw-biu-toggle' : 'aw-biu-toggle'}
+              onClick={() => setFormatToolbarOpen((current) => !current)}
+            >
+              B<em>I</em><u>U</u>
+            </button>
             <button
               aria-label={t('markdownSyntax')}
               aria-pressed={showMarkdownSyntax}
@@ -1248,12 +1289,29 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
             >
               ⛶
             </button>
-            <button aria-label={t('exportMarkdown')} onClick={() => { void handleExportMarkdown(); }}>⇩</button>
-            <button aria-label={t('exportBundle')} onClick={() => { void handleExportBundle(); }}>⤓</button>
-            <button aria-label={t('checkIntegrity')} onClick={() => { void handleCheckIntegrity(); }}>✓</button>
-            <button aria-label="More">⋮</button>
+            <button
+              aria-label="More"
+              aria-expanded={moreMenuOpen}
+              className={moreMenuOpen ? 'is-active' : ''}
+              onClick={() => setMoreMenuOpen((current) => !current)}
+            >
+              ⋮
+            </button>
           </div>
         </div>
+        {moreMenuOpen ? (
+          <div className="aw-more-menu" role="menu">
+            <button role="menuitem">拷贝笔记链接</button>
+            <button role="menuitem">复制笔记的标识符</button>
+            <button role="menuitem" onClick={() => { void handleExportMarkdown(); setMoreMenuOpen(false); }}>导出笔记...</button>
+            <button role="menuitem" onClick={() => { void handleExportBundle(); setMoreMenuOpen(false); }}>导出资料包...</button>
+            <button role="menuitem" onClick={() => { void handleCheckIntegrity(); setMoreMenuOpen(false); }}>切换数据</button>
+            <button role="menuitem" onClick={() => setLayout((current) => ({ ...current, contextOpen: !current.contextOpen }))}>显示/隐藏浏览导航</button>
+            <button role="menuitem">删除</button>
+            <button role="menuitem">归档</button>
+            <button role="menuitem">加密与锁定</button>
+          </div>
+        ) : null}
         {inspectorOpen ? (
           <aside className="aw-stat-popover">
             <h2>统计</h2>
@@ -1346,15 +1404,6 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
 
           <div ref={editorHostRef} className="aw-editor-host" />
           <div className={`aw-format-dock ${formatToolbarOpen ? 'is-open' : 'is-closed'}`}>
-            <button
-              type="button"
-              className="aw-format-dock__toggle"
-              aria-label={formatToolbarOpen ? '隐藏功能区' : '显示功能区'}
-              aria-expanded={formatToolbarOpen}
-              onClick={() => setFormatToolbarOpen((current) => !current)}
-            >
-              {formatToolbarOpen ? '⌄' : '⌃'}
-            </button>
             {formatToolbarOpen ? (
               <div className="aw-floating-toolbar" role="toolbar" aria-label="编辑功能区">
                 <button type="button" aria-label="标题" onClick={toggleHeading}>H⌄</button>

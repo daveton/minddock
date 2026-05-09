@@ -383,34 +383,38 @@ button {
 
   .aw-sidebar__brand {
     border-bottom: 0;
-    justify-content: space-between;
-    padding: 0 24px;
+    justify-content: flex-end;
+    padding: 0 18px;
   }
 
   .aw-preferences {
     position: fixed;
-    top: 48px;
-    left: 18px;
+    top: 0;
+    left: 50%;
     z-index: 12;
-    display: grid;
-    width: min(420px, calc(100vw - 36px));
-    grid-template-columns: 128px minmax(0, 1fr);
+    display: flex;
+    width: min(760px, calc(100vw - 48px));
+    max-height: min(720px, calc(100vh - 48px));
+    flex-direction: column;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: var(--radius-panel);
-    background: rgba(250, 250, 248, 0.86);
+    border: 1px solid rgba(0, 0, 0, 0.16);
+    border-radius: 14px;
+    background: rgba(232, 232, 232, 0.94);
     color: var(--text-primary);
-    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.18);
-    backdrop-filter: blur(30px);
+    box-shadow: 0 26px 70px rgba(0, 0, 0, 0.24);
+    transform: translateX(-50%);
+    backdrop-filter: blur(28px);
   }
 
   .aw-preferences nav {
-    display: grid;
-    align-content: start;
-    gap: var(--space-1);
-    border-right: 1px solid var(--border-ultra-light);
-    background: rgba(238, 238, 234, 0.72);
-    padding: var(--space-4) var(--space-3);
+    display: flex;
+    height: 108px;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+    background: rgba(224, 224, 224, 0.88);
+    padding: 14px 28px;
   }
 
   .aw-preferences nav button,
@@ -418,15 +422,29 @@ button {
     display: flex;
     min-height: 32px;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     border-radius: var(--radius-control);
     background: transparent;
     color: var(--text-secondary);
     padding: 0 var(--space-3);
-    text-align: left;
+    text-align: center;
     cursor: pointer;
     font-size: 13px;
     transition: background var(--motion-fast), color var(--motion-fast);
+  }
+
+  .aw-preferences nav button {
+    width: 74px;
+    height: 74px;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .aw-preferences nav button span {
+    font-size: 31px;
+    line-height: 1;
   }
 
   .aw-preferences nav .is-active,
@@ -438,20 +456,23 @@ button {
 
   .aw-preferences__body {
     display: grid;
+    min-height: 420px;
+    overflow: auto;
     gap: var(--space-5);
-    padding: var(--space-5);
+    padding: 34px 66px 44px;
   }
 
   .aw-preferences__body section {
     display: grid;
-    gap: var(--space-3);
+    gap: 18px;
   }
 
   .aw-preferences h2 {
     margin: 0;
     color: var(--text-primary);
-    font-size: 15px;
+    font-size: 18px;
     line-height: 1.3;
+    text-align: center;
   }
 
   .aw-preferences label {
@@ -472,6 +493,94 @@ button {
     font-size: 12px;
     font-weight: 600;
     text-align: right;
+  }
+
+  .aw-preferences .aw-check-row {
+    display: flex;
+    grid-template-columns: none;
+    justify-content: flex-start;
+    color: #2c2c2c;
+    font-size: 18px;
+  }
+
+  .aw-preferences .aw-check-row input {
+    width: 20px;
+    height: 20px;
+  }
+
+  .aw-select-row {
+    grid-template-columns: 1fr minmax(220px, 340px) !important;
+    color: #2c2c2c !important;
+    font-size: 18px !important;
+  }
+
+  .aw-select-row select {
+    min-height: 36px;
+    border: 1px solid rgba(0, 0, 0, 0.18);
+    border-radius: 8px;
+    background: white;
+    color: #222222;
+    padding: 0 12px;
+    font: inherit;
+  }
+
+  .aw-font-row {
+    display: grid;
+    grid-template-columns: 70px minmax(0, 1fr);
+    align-items: center;
+    gap: 18px;
+    color: #303030;
+    font-size: 18px;
+  }
+
+  .aw-font-row button {
+    min-height: 36px;
+    border: 1px solid rgba(0, 0, 0, 0.14);
+    background: white;
+    color: #222222;
+    font-size: 20px;
+  }
+
+  .aw-theme-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .aw-theme-grid button {
+    display: grid;
+    min-height: 126px;
+    align-content: start;
+    justify-content: stretch;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    background: #ffffff;
+    padding: 22px;
+    text-align: left;
+  }
+
+  .aw-theme-grid button:nth-child(even) {
+    background: #1d2022;
+    color: #dadada;
+  }
+
+  .aw-theme-grid button.is-active {
+    border: 4px solid var(--aw-accent);
+  }
+
+  .aw-theme-grid button span {
+    margin-top: 12px;
+    color: currentColor;
+    font-size: 15px;
+    line-height: 1.6;
+    opacity: 0.75;
+  }
+
+  .aw-sync-panel p {
+    margin: 0;
+    max-width: 48ch;
+    color: #777777;
+    font-size: 17px;
+    line-height: 1.55;
   }
 
   .aw-window-dots {
@@ -770,6 +879,18 @@ button {
     font-weight: 760;
   }
 
+  .aw-editor-tools .aw-biu-toggle {
+    width: 66px;
+    grid-auto-flow: column;
+    gap: 1px;
+    font-size: 18px;
+  }
+
+  .aw-editor-tools .aw-biu-toggle em {
+    font-style: italic;
+    font-weight: 500;
+  }
+
   .aw-editor-titleline button:hover,
   .aw-editor-tools button:hover,
   .aw-editor-tools .is-active {
@@ -790,6 +911,37 @@ button {
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.2);
     padding: 18px;
     backdrop-filter: blur(22px);
+  }
+
+  .aw-more-menu {
+    position: fixed;
+    top: 52px;
+    right: 18px;
+    z-index: 9;
+    display: grid;
+    width: 260px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.18);
+    border-radius: 10px;
+    background: rgba(226, 226, 226, 0.96);
+    color: #252525;
+    padding: 8px 0;
+    box-shadow: 0 18px 52px rgba(0, 0, 0, 0.22);
+    backdrop-filter: blur(20px);
+  }
+
+  .aw-more-menu button {
+    min-height: 34px;
+    background: transparent;
+    color: inherit;
+    padding: 0 22px;
+    text-align: left;
+    cursor: pointer;
+    font-size: 17px;
+  }
+
+  .aw-more-menu button:hover {
+    background: rgba(0, 0, 0, 0.07);
   }
 
   .aw-stat-popover h2 {
@@ -1601,29 +1753,7 @@ button {
   }
 
   .aw-format-dock.is-closed {
-    margin-top: 22px;
-  }
-
-  .aw-format-dock__toggle {
-    display: grid;
-    width: 34px;
-    height: 34px;
-    place-items: center;
-    border-radius: 8px;
-    background: rgba(218, 218, 218, 0.92);
-    color: #555555;
-    cursor: pointer;
-    font-size: 20px;
-    font-weight: 760;
-    line-height: 1;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
-    backdrop-filter: blur(18px);
-  }
-
-  .aw-format-dock__toggle:hover,
-  .aw-format-dock__toggle:focus-visible {
-    background: rgba(203, 203, 203, 0.96);
-    color: #3f3f3f;
+    display: none;
   }
 
   .aw-floating-toolbar {
