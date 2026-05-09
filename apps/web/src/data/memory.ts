@@ -79,6 +79,7 @@ export type NoteSnapshot = {
   docId: string
   markdown: string
   content?: Record<string, unknown>
+  version: number
   selection?: EditorSelectionSnapshot | null
   scrollPosition?: number
   createdAt: number

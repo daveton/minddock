@@ -281,23 +281,66 @@ async function repairLoadedNote(note: Note) {
 
 async function recoverNoteFromSnapshot(noteId: string) {
   const snapshot = await loadLatestSnapshot(noteId)
-  if (!snapshot) {
+  const operations = await storageProvider.loadOperations(noteId)
+  const replayed = replayOperationsFromSnapshot(noteId, snapshot, operations)
+
+  if (!replayed) {
     return null
   }
 
-  const recoveredNote: Note = {
-    id: noteId,
-    ...buildDocumentFields(noteId, normalizeDocument(snapshot.content ?? null).document, null, snapshot.markdown),
-    createdAt: snapshot.createdAt,
-    updatedAt: Date.now(),
-    version: 1,
+  noteCache.set(noteId, replayed)
+  await storageProvider.saveWithSnapshot(
+    replayed,
+    createSnapshot(replayed, 'recovery'),
+    buildBlockIndex(replayed.id, replayed.content, replayed.markdown),
+  )
+  console.info(`[CRASH_RECOVERY] Restored ${noteId} from local snapshot and operations`)
+
+  return replayed
+}
+
+function replayOperationsFromSnapshot(
+  noteId: string,
+  snapshot: NoteSnapshot | null,
+  operations: OperationEntry[],
+): Note | null {
+  const orderedOperations = operations.sort((a, b) => a.createdAt - b.createdAt)
+  const baseContent = snapshot?.content ? normalizeDocument(snapshot.content).document : null
+  const baseMarkdown = snapshot?.markdown
+  const baseCreatedAt = snapshot?.createdAt ?? orderedOperations[0]?.createdAt
+
+  let replayedContent = baseContent
+  let replayedMarkdown = baseMarkdown
+  let replayedVersion = snapshot?.version ?? 0
+  let updatedAt = snapshot?.createdAt ?? Date.now()
+
+  for (const operation of orderedOperations) {
+    if (snapshot && operation.createdAt < snapshot.createdAt) {
+      continue
+    }
+
+    if (operation.type !== 'document.upsert') {
+      continue
+    }
+
+    replayedContent = normalizeDocument(operation.payload.content).document
+    replayedMarkdown = operation.payload.markdown
+    replayedVersion = Math.max(replayedVersion, operation.payload.version)
+    updatedAt = operation.createdAt
   }
 
-  noteCache.set(noteId, recoveredNote)
-  await storageProvider.save(recoveredNote)
-  console.info(`[CRASH_RECOVERY] Restored ${noteId} from local snapshot`)
+  if (!replayedContent) {
+    return null
+  }
 
-  return recoveredNote
+  return {
+    id: noteId,
+    ...buildDocumentFields(noteId, replayedContent, null, replayedMarkdown, replayedVersion || 1),
+    createdAt: baseCreatedAt ?? Date.now(),
+    updatedAt,
+    version: replayedVersion || 1,
+    snapshotVersion: replayedVersion || 1,
+  }
 }
 
 function buildNoteRecord(noteId: string, content: Record<string, unknown>, existingNote: Note | null | undefined): Note {
@@ -450,6 +493,7 @@ function createSnapshot(note: Note, reason: NoteSnapshot['reason']): NoteSnapsho
     docId: note.id,
     markdown: note.markdown,
     content: note.content,
+    version: note.version,
     selection: null,
     scrollPosition: 0,
     createdAt: Date.now(),

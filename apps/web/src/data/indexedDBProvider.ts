@@ -78,6 +78,11 @@ export class IndexedDBProvider implements AtomicSnapshotStorageProvider {
     return db.getAllFromIndex('operations', 'by-doc', noteId)
   }
 
+  async listOperations() {
+    const db = await dbPromise
+    return db.getAll('operations')
+  }
+
   async deleteOperation(id: string) {
     const db = await dbPromise
     await db.delete('operations', id)
@@ -86,6 +91,11 @@ export class IndexedDBProvider implements AtomicSnapshotStorageProvider {
   async loadBlocks(noteId: string) {
     const db = await dbPromise
     return db.getAllFromIndex('blocks', 'by-doc', noteId)
+  }
+
+  async listBlocks() {
+    const db = await dbPromise
+    return db.getAll('blocks')
   }
 
   async saveEditorState(state: EditorStateRecord) {

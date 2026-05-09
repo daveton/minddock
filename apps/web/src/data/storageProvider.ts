@@ -29,8 +29,10 @@ export interface AtomicSnapshotStorageProvider extends StorageProvider, Snapshot
   ): Promise<void>
   saveOperation(entry: OperationEntry): Promise<void>
   loadOperations(noteId: string): Promise<OperationEntry[]>
+  listOperations(): Promise<OperationEntry[]>
   deleteOperation(id: string): Promise<void>
   loadBlocks(noteId: string): Promise<BlockIndexEntry[]>
+  listBlocks(): Promise<BlockIndexEntry[]>
   saveEditorState(state: EditorStateRecord): Promise<void>
   loadEditorState(docId: string): Promise<EditorStateRecord | null>
   saveWorkspaceState(state: WorkspaceStateRecord): Promise<void>
