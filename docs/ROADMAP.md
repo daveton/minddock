@@ -28,6 +28,7 @@
 - IndexedDB 仍然是本地主数据源。
 - IndexedDB 写入必须 debounce / batch，默认 300-800ms，不进入输入关键路径。
 - 主数据可导出为 Markdown，或保留稳定的结构化 JSON 转换路径。
+- 本地 Markdown 文件夹同步：用户可选择目录，并按首个 tag path 生成目录树。已完成最小版本。
 - 输入延迟 p95 小于 16ms。
 - 页面刷新和崩溃恢复经过验证，最小 crash-safe persistence 可用。
 - 多标签页行为有明确策略，并完成最小处理。
@@ -79,9 +80,13 @@
 - 标题、列表、引用、代码、时间线等语义块分析。
 - Inline AI：选中句子、段落或 block 后进行总结、扩写、改写、翻译、建关联。
 - AI 输出优先回写为结构化 block，且必须经过用户确认或明确 transaction。
-- 本地优先同步队列：local journal -> sync queue -> remote merge。
-- 冲突处理和冲突记录。
-- 可选的 NAS / 自托管后端。
+- 本地优先同步队列：local journal -> sync queue -> remote adapter -> conflict records。
+- 云/NAS adapter：REST、Supabase、S3 或自托管 NAS API 选型并实现一种最小闭环。
+- 增量上传：按 operation id、doc id、version、timestamp 上传。
+- 增量下载：远端 operation 只能经 Repository 合并，禁止直接覆盖 editor state。
+- 冲突处理和冲突记录：保留本地、接受远端、另存副本。
+- 同步状态 UI：pending、syncing、synced、conflict、failed。
+- 本地 Markdown 文件夹继续作为 backup / migration projection，不作为多设备 merge source of truth。
 
 ## Phase 4：跨端一致
 

@@ -236,6 +236,112 @@ Layer 2: append-only local snapshot / journal
 - 明确动作如切换笔记、关闭页面、进入后台时可触发 flush。
 - snapshot 写入前后校验 document invariants。
 
+## Local + Markdown + Cloud Storage Strategy
+
+MindDock 采用 local-first 保存策略。IndexedDB 是浏览器端 source of truth，本地 Markdown 文件夹和云端都只能作为同步/备份目标，不能在编辑输入关键路径中反向覆盖编辑器状态。
+
+当前目标架构：
+
+```text
+User edits note
+        |
+        v
+TipTap / ProseMirror transaction
+        |
+        v
+Repository debounce / flush
+        |
+        v
+IndexedDB source of truth
+  notes + snapshots + operations + blocks
+        |
+        +--------------------+
+        |                    |
+        v                    v
+Local Markdown Folder     Cloud / NAS Sync
+File System Access API    operation queue + remote merge
+backup / migration        cross-device backup
+```
+
+### Save Targets
+
+用户可以选择三种保存策略：
+
+- 仅保存到 IndexedDB。
+- 保存到 IndexedDB，并同步到本地 Markdown 文件夹。
+- 仅保存到本地 Markdown 文件夹。
+
+默认策略应保持为 IndexedDB 优先。即使启用了本地 Markdown 文件夹，编辑器保存也先走 Repository / IndexedDB，再由节流同步写入文件夹。这样可以保证刷新恢复、snapshot、operation journal 和 block index 不被绕过。
+
+当前 Web 端已经实现：
+
+- `data/repository.ts`：IndexedDB 主写入边界，生成 snapshot、operation、block index。
+- `import-export/fileSystem.ts`：File System Access API 目录选择与 Markdown 写入。
+- `components/WorkspaceViewFixed.tsx`：保存偏好 UI，支持数据库、本地文件夹、标签目录树三种开关。
+
+### Markdown Folder Projection
+
+本地 Markdown 文件夹是从当前笔记派生出来的 projection，不是主数据库。
+
+路径规则：
+
+```text
+first tag path: #study/历史/清朝
+file path:      study/历史/清朝/<safe-title>.md
+```
+
+约束：
+
+- 标题来自正文中的第一个 heading。
+- 文件名使用派生标题，非法路径字符替换为安全字符。
+- 目录层级只来自第一个 tag path。
+- 浏览器不能持久暴露绝对路径，UI 只能展示用户选择的目录名和相对预览路径。
+- Safari 等不支持 File System Access API 的浏览器走手动导出/下载路径。
+
+注意：如果用户编辑标签导致首个 tag path 改变，后续同步会写入新路径。旧路径清理需要单独的文件迁移记录，不能在没有明确用户确认时自动删除磁盘文件。
+
+### Cloud / NAS Sync Boundary
+
+云端同步必须基于本地 operation journal，而不是监听每次按键直接请求网络。
+
+推荐后续接口：
+
+```text
+IndexedDB operations
+        |
+        v
+sync_queue
+  operationId
+  docId
+  localVersion
+  remoteVersion?
+  status: pending | syncing | synced | conflict | failed
+  retryAt
+        |
+        v
+Remote adapter
+  REST / Supabase / S3 / NAS API
+        |
+        v
+Conflict records
+```
+
+云端数据最小单位：
+
+- `operation.id`
+- `operation.docId`
+- `operation.createdAt`
+- `operation.payload.version`
+- `operation.payload.markdown`
+- `operation.payload.content`
+
+冲突策略：
+
+- 单设备编辑时，本地 IndexedDB 版本是 master。
+- 多设备编辑时，按 `docId + version + operation.createdAt` 检测分叉。
+- 不做静默远端覆盖。远端更高版本进入 conflict record，由用户选择保留本地、接受远端或另存副本。
+- remote merge 只能通过 Repository 写回，不能直接改 editor state、note cache 或 IndexedDB object store。
+
 ## 当前产品表面
 
 当前 UI 仍然刻意保持扁平：
