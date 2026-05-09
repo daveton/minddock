@@ -6,8 +6,13 @@ import { createEditor } from '../editor/setup';
 import {
   createNote,
   ensureDefaultNote,
+  flushPendingNoteSave,
   listNotes,
+  loadEditorState,
+  loadWorkspaceState,
   loadNote,
+  saveEditorState,
+  saveWorkspaceState,
   saveNoteById,
   setCurrentNote,
   sortNotes,
@@ -88,6 +93,7 @@ const mobileNotes = [
 ];
 const chips = ['历史', 'AI', '设计', '心理学', '写作', '商业'];
 const LAYOUT_STORAGE_KEY = 'minddock.workspace.layout.v1';
+const WORKSPACE_STATE_ID = 'default';
 const LANGUAGE_STORAGE_KEY = 'minddock.workspace.language.v1';
 const MARKDOWN_SYNTAX_STORAGE_KEY = 'minddock.workspace.markdown-syntax.v1';
 const SIDEBAR_DEFAULT = 256;
@@ -476,6 +482,21 @@ function getNoteOutline(content: unknown) {
   return outline;
 }
 
+function getEditorScrollParent(element: HTMLElement | null): HTMLElement | null {
+  let current = element?.parentElement ?? null;
+
+  while (current) {
+    const style = window.getComputedStyle(current);
+    if (/(auto|scroll)/.test(`${style.overflow}${style.overflowY}`)) {
+      return current;
+    }
+
+    current = current.parentElement;
+  }
+
+  return document.scrollingElement as HTMLElement | null;
+}
+
 function collectHeadings(value: unknown, outline: Array<{ id: string; level: number; text: string }>) {
   if (!value || typeof value !== 'object') return;
 
@@ -689,7 +710,35 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
 
   useEffect(() => {
     window.localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(layout));
+    void saveWorkspaceState({
+      id: WORKSPACE_STATE_ID,
+      sidebarWidth: layout.sidebarWidth,
+      listWidth: layout.listWidth,
+      contextOpen: layout.contextOpen,
+      theme: layout.theme,
+      focusMode: layout.focusMode,
+    });
   }, [layout]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    void loadWorkspaceState(WORKSPACE_STATE_ID).then((saved) => {
+      if (!saved || disposed) return;
+
+      setLayout({
+        sidebarWidth: clamp(saved.sidebarWidth, SIDEBAR_MIN, SIDEBAR_MAX),
+        listWidth: clamp(saved.listWidth, LIST_MIN, LIST_MAX),
+        contextOpen: saved.contextOpen,
+        theme: 'light',
+        focusMode: saved.focusMode,
+      });
+    });
+
+    return () => {
+      disposed = true;
+    };
+  }, []);
 
   useEffect(() => {
     window.localStorage.setItem(MARKDOWN_SYNTAX_STORAGE_KEY, String(showMarkdownSyntax));
@@ -752,7 +801,16 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
     applyingRemoteContentRef.current = true;
     editor.commands.setContent(note.content);
     setActiveContent(editor.getJSON());
-    queueMicrotask(() => {
+    void loadEditorState(note.id).then((state) => {
+      if (state?.selection) {
+        editor.commands.setTextSelection(state.selection);
+      }
+
+      const scrollParent = getEditorScrollParent(editorHostRef.current);
+      if (scrollParent && state) {
+        scrollParent.scrollTop = state.scrollTop;
+      }
+    }).finally(() => {
       applyingRemoteContentRef.current = false;
     });
   }, []);
@@ -766,6 +824,7 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
     if (!result.success) {
       throw new Error(result.error?.message ?? 'Save failed');
     }
+    await flushPendingNoteSave(noteId);
 
     await refreshNotes(noteId);
   }, [refreshNotes]);
@@ -778,6 +837,7 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
     editorRef.current = editor;
 
     const unbind = bindEditorEvents(editor, {
+      getNoteId: () => activeNoteIdRef.current ?? '',
       shouldSave: () => !applyingRemoteContentRef.current,
       onSaving: () => setSaveState({ labelKey: 'savingLocally', tone: 'live', detailKey: null }),
       onSaved: async () => {
@@ -793,6 +853,18 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
     });
     const syncActiveContent = () => {
       setActiveContent(editor.getJSON());
+      const noteId = activeNoteIdRef.current;
+      if (!noteId || applyingRemoteContentRef.current) return;
+
+      const selection = editor.state.selection;
+      const scrollTop = getEditorScrollParent(editorHostRef.current)?.scrollTop ?? 0;
+      void saveEditorState(noteId, {
+        selection: {
+          from: selection.from,
+          to: selection.to,
+        },
+        scrollTop,
+      });
     };
     editor.on('update', syncActiveContent);
 

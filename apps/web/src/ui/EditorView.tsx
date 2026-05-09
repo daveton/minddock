@@ -9,6 +9,7 @@ import {
   loadNote,
   saveNoteById,
   setCurrentNote,
+  flushPendingNoteSave,
 } from '../data/repository'
 import type { NoteSummary } from '../data/memory'
 import {
@@ -65,6 +66,7 @@ export default function EditorView() {
     }
 
     const unbind = bindEditorEvents(editor, {
+      getNoteId: () => activeNoteIdRef.current,
       onSaving: () => {
         setSaveErrorDetail(null)
         setStatus('Saving locally', 'live')
@@ -154,6 +156,7 @@ export default function EditorView() {
 
     const noteId = activeNoteIdRef.current
     await saveNoteById(noteId, editor.getJSON())
+    await flushPendingNoteSave(noteId)
   }
 
   const handleCreateNote = async () => {

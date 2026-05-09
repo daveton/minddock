@@ -1,6 +1,13 @@
 import { openDB } from 'idb'
 import type { DBSchema } from 'idb'
-import type { Note, NoteSnapshot } from './memory'
+import type {
+  BlockIndexEntry,
+  EditorStateRecord,
+  Note,
+  NoteSnapshot,
+  OperationEntry,
+  WorkspaceStateRecord,
+} from './memory'
 
 interface MindDockDB extends DBSchema {
   notes: {
@@ -17,9 +24,36 @@ interface MindDockDB extends DBSchema {
       'by-note': string
     }
   }
+  blocks: {
+    key: string
+    value: BlockIndexEntry
+    indexes: {
+      'by-doc': string
+      'by-doc-type': [string, string]
+    }
+  }
+  operations: {
+    key: string
+    value: OperationEntry
+    indexes: {
+      'by-doc': string
+      'by-created': number
+    }
+  }
+  editor_state: {
+    key: string
+    value: EditorStateRecord
+    indexes: {
+      'by-last-opened': number
+    }
+  }
+  workspace_state: {
+    key: string
+    value: WorkspaceStateRecord
+  }
 }
 
-export const dbPromise = openDB<MindDockDB>('minddock', 3, {
+export const dbPromise = openDB<MindDockDB>('minddock', 5, {
   async upgrade(db, oldVersion, _newVersion, transaction) {
     if (oldVersion > 0 && oldVersion < 3) {
       const migrationDb = db as unknown as MigrationDatabase
@@ -37,6 +71,27 @@ export const dbPromise = openDB<MindDockDB>('minddock', 3, {
       snapshots.createIndex('by-note', 'noteId')
     }
 
+    if (!db.objectStoreNames.contains('blocks')) {
+      const blocks = db.createObjectStore('blocks', { keyPath: 'id' })
+      blocks.createIndex('by-doc', 'docId')
+      blocks.createIndex('by-doc-type', ['docId', 'type'])
+    }
+
+    if (!db.objectStoreNames.contains('operations')) {
+      const operations = db.createObjectStore('operations', { keyPath: 'id' })
+      operations.createIndex('by-doc', 'docId')
+      operations.createIndex('by-created', 'createdAt')
+    }
+
+    if (!db.objectStoreNames.contains('editor_state')) {
+      const editorState = db.createObjectStore('editor_state', { keyPath: 'docId' })
+      editorState.createIndex('by-last-opened', 'lastOpenedAt')
+    }
+
+    if (!db.objectStoreNames.contains('workspace_state')) {
+      db.createObjectStore('workspace_state', { keyPath: 'id' })
+    }
+
     const notes = transaction.objectStore('notes')
     if (!notes.indexNames.contains('by-updated')) {
       notes.createIndex('by-updated', 'updatedAt')
@@ -45,6 +100,27 @@ export const dbPromise = openDB<MindDockDB>('minddock', 3, {
     const snapshots = transaction.objectStore('noteSnapshots')
     if (!snapshots.indexNames.contains('by-note')) {
       snapshots.createIndex('by-note', 'noteId')
+    }
+
+    const blocks = transaction.objectStore('blocks')
+    if (!blocks.indexNames.contains('by-doc')) {
+      blocks.createIndex('by-doc', 'docId')
+    }
+    if (!blocks.indexNames.contains('by-doc-type')) {
+      blocks.createIndex('by-doc-type', ['docId', 'type'])
+    }
+
+    const operations = transaction.objectStore('operations')
+    if (!operations.indexNames.contains('by-doc')) {
+      operations.createIndex('by-doc', 'docId')
+    }
+    if (!operations.indexNames.contains('by-created')) {
+      operations.createIndex('by-created', 'createdAt')
+    }
+
+    const editorState = transaction.objectStore('editor_state')
+    if (!editorState.indexNames.contains('by-last-opened')) {
+      editorState.createIndex('by-last-opened', 'lastOpenedAt')
     }
   },
 })

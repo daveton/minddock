@@ -1,9 +1,10 @@
 import type { Editor } from '@tiptap/core'
-import { saveCurrentNote } from '../data/repository'
+import { queueNoteSave } from '../data/repository'
 import { markKeydown, markEditorUpdate } from '../perf/inputLatency'
 import { debounce } from '../utils/debounce'
 
 type BindOptions = {
+  getNoteId?: () => string
   onSaving?: () => void
   onSaved?: () => void
   onError?: () => void
@@ -26,8 +27,12 @@ export function bindEditorEvents(editor: Editor, options: BindOptions = {}) {
 
     try {
       options.onSaving?.()
+      const noteId = options.getNoteId?.()
+      if (!noteId) {
+        throw new Error('Missing active note id')
+      }
       const content = editor.getJSON()
-      const result = await saveCurrentNote(content)
+      const result = await queueNoteSave(noteId, content)
       if (!result.success) {
         throw new Error(result.error?.message ?? 'Save failed')
       }

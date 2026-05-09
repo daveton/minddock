@@ -1,16 +1,33 @@
 import { noteCache } from './memory'
 import { IndexedDBProvider } from './indexedDBProvider'
-import type { Note, NoteSnapshot, NoteSummary } from './memory'
+import type {
+  EditorStateRecord,
+  Note,
+  NoteSnapshot,
+  NoteSummary,
+  OperationEntry,
+  WorkspaceStateRecord,
+} from './memory'
 import type { AtomicSnapshotStorageProvider } from './storageProvider'
 import { handleStorageError, StorageError } from './errorHandler'
 import { noteSession } from './memory'
-import { normalizeDocument } from './documentModel'
+import { extractDocumentMetadata, normalizeDocument } from './documentModel'
+import { serializeMarkdown } from '../import-export/markdown'
+import { buildBlockIndex } from './blockIndex'
 
 const DEFAULT_NOTE_ID = 'note-1'
 const LAST_ACTIVE_NOTE_KEY = 'minddock:last-active-note-id'
 const UNSAVED_DRAFTS_KEY = 'minddock:unsaved-note-drafts:v1'
 const MAX_SNAPSHOTS_PER_NOTE = 20
 const storageProvider: AtomicSnapshotStorageProvider = new IndexedDBProvider()
+const pendingSaves = new Map<
+  string,
+  {
+    content: Record<string, unknown>
+    resolvers: Array<(result: SaveResult) => void>
+  }
+>()
+const idleFlushTimers = new Map<string, number>()
 
 type UnsavedDraft = {
   id: string
@@ -18,28 +35,91 @@ type UnsavedDraft = {
   updatedAt: number
 }
 
+type SaveResult = { success: boolean; error?: StorageError }
+
 export async function saveCurrentNote(content: Record<string, unknown>) {
   const noteId = ensureCurrentNoteId()
-  return saveNoteById(noteId, content)
+  return queueNoteSave(noteId, content)
 }
 
 export async function saveNoteById(
   noteId: string,
   content: Record<string, unknown>,
-): Promise<{ success: boolean; error?: StorageError }> {
+): Promise<SaveResult> {
+  return persistNote(noteId, content)
+}
+
+export function queueNoteSave(noteId: string, content: Record<string, unknown>): Promise<SaveResult> {
+  const normalized = normalizeDocument(content)
+  const existingNote = noteCache.get(noteId)
+  const note = buildNoteRecord(noteId, normalized.document, existingNote)
+
+  noteCache.set(noteId, note)
+  cacheUnsavedDraft(noteId, normalized.document)
+
+  const pending = pendingSaves.get(noteId)
+  if (pending) {
+    pending.content = normalized.document
+    return new Promise<SaveResult>((resolve) => {
+      pending.resolvers.push(resolve)
+      scheduleIdleFlush(noteId)
+    })
+  }
+
+  const nextPending = {
+    content: normalized.document,
+    resolvers: [] as Array<(result: SaveResult) => void>,
+  }
+  const promise = new Promise<SaveResult>((resolve) => {
+    nextPending.resolvers.push(resolve)
+    pendingSaves.set(noteId, nextPending)
+    scheduleIdleFlush(noteId, async () => {
+      const latestPending = pendingSaves.get(noteId)
+      if (!latestPending) {
+        return
+      }
+
+      pendingSaves.delete(noteId)
+      const result = await persistNote(noteId, latestPending.content)
+      latestPending.resolvers.forEach((resolver) => resolver(result))
+    })
+  })
+
+  return promise
+}
+
+export async function flushPendingNoteSave(noteId: string): Promise<SaveResult> {
+  const pending = pendingSaves.get(noteId)
+  if (!pending) {
+    return { success: true }
+  }
+
+  if (typeof window !== 'undefined') {
+    window.clearTimeout(idleFlushTimers.get(noteId))
+  }
+  idleFlushTimers.delete(noteId)
+  pendingSaves.delete(noteId)
+  const result = await persistNote(noteId, pending.content)
+  pending.resolvers.forEach((resolver) => resolver(result))
+  return result
+}
+
+async function persistNote(noteId: string, content: Record<string, unknown>): Promise<SaveResult> {
   try {
     const normalized = normalizeDocument(content)
     const existingNote = noteCache.get(noteId) ?? (await storageProvider.load(noteId))
-    const note: Note = {
-      id: noteId,
-      content: normalized.document,
-      createdAt: existingNote?.createdAt ?? existingNote?.updatedAt ?? Date.now(),
-      updatedAt: Date.now(),
-    }
+    const note = buildNoteRecord(noteId, normalized.document, existingNote)
+    const operation = createOperation(note)
+    const blocks = buildBlockIndex(note.id, note.content, note.markdown)
 
     noteCache.set(noteId, note)
 
-    await storageProvider.saveWithSnapshot(note, createSnapshot(note, normalized.repaired ? 'repair' : 'save'))
+    await storageProvider.saveWithSnapshot(
+      note,
+      createSnapshot(note, normalized.repaired ? 'repair' : 'save'),
+      blocks,
+      operation,
+    )
     await pruneSnapshots(noteId)
     clearUnsavedDraft(noteId)
 
@@ -59,10 +139,13 @@ export async function saveNoteById(
 export async function loadNote(id: string) {
   const draft = getUnsavedDraft(id)
   if (draft) {
+    const draftFields = buildDocumentFields(draft.id, draft.content, null)
     const repairedDraft = await repairLoadedNote({
       id: draft.id,
-      content: draft.content,
+      ...draftFields,
+      createdAt: draft.updatedAt,
       updatedAt: draft.updatedAt,
+      version: 1,
       localStatus: 'unsaved',
     })
     return { ...repairedDraft, localStatus: 'unsaved' as const }
@@ -99,7 +182,7 @@ export async function ensureDefaultNote() {
 
   const emptyNote: Note = {
     id: startupNoteId,
-    content: normalizeDocument({
+    ...buildDocumentFields(startupNoteId, normalizeDocument({
       type: 'doc',
       content: [
         {
@@ -112,9 +195,10 @@ export async function ensureDefaultNote() {
           ],
         },
       ],
-    }).document,
+    }).document, null),
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    version: 1,
   }
 
   noteCache.set(startupNoteId, emptyNote)
@@ -150,16 +234,17 @@ export async function createNote() {
   const noteId = `note-${crypto.randomUUID().slice(0, 8)}`
   const note: Note = {
     id: noteId,
-    content: normalizeDocument({
+    ...buildDocumentFields(noteId, normalizeDocument({
       type: 'doc',
       content: [
         {
           type: 'paragraph',
         },
       ],
-    }).document,
+    }).document, null),
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    version: 1,
   }
 
   noteCache.set(noteId, note)
@@ -170,15 +255,19 @@ export async function createNote() {
 
 async function repairLoadedNote(note: Note) {
   const normalized = normalizeDocument(note.content)
-  if (!normalized.repaired) {
+  const needsDocumentFields =
+    !note.markdown || !note.title || !Array.isArray(note.tags) || typeof note.version !== 'number'
+
+  if (!normalized.repaired && !needsDocumentFields) {
     return note
   }
 
   const repairedNote: Note = {
     ...note,
-    content: normalized.document,
+    ...buildDocumentFields(note.id, normalized.document, note),
     createdAt: note.createdAt ?? note.updatedAt,
     updatedAt: Date.now(),
+    version: (note.version ?? 0) + 1,
   }
 
   noteCache.set(repairedNote.id, repairedNote)
@@ -198,9 +287,10 @@ async function recoverNoteFromSnapshot(noteId: string) {
 
   const recoveredNote: Note = {
     id: noteId,
-    content: normalizeDocument(snapshot.content).document,
+    ...buildDocumentFields(noteId, normalizeDocument(snapshot.content ?? null).document, null, snapshot.markdown),
     createdAt: snapshot.createdAt,
     updatedAt: Date.now(),
+    version: 1,
   }
 
   noteCache.set(noteId, recoveredNote)
@@ -208,6 +298,130 @@ async function recoverNoteFromSnapshot(noteId: string) {
   console.info(`[CRASH_RECOVERY] Restored ${noteId} from local snapshot`)
 
   return recoveredNote
+}
+
+function buildNoteRecord(noteId: string, content: Record<string, unknown>, existingNote: Note | null | undefined): Note {
+  const version = (existingNote?.version ?? 0) + 1
+
+  return {
+    id: noteId,
+    ...buildDocumentFields(noteId, content, existingNote, undefined, version),
+    createdAt: existingNote?.createdAt ?? existingNote?.updatedAt ?? Date.now(),
+    updatedAt: Date.now(),
+    version,
+    snapshotVersion: version,
+  }
+}
+
+function buildDocumentFields(
+  _noteId: string,
+  content: Record<string, unknown>,
+  existingNote: Note | null | undefined,
+  recoveredMarkdown?: string,
+  version = existingNote?.version ?? 1,
+) {
+  const metadata = extractDocumentMetadata(content)
+  const pinned = existingNote?.metadata?.pinned ?? existingNote?.pinned ?? false
+  const archived = existingNote?.metadata?.archived ?? existingNote?.archived ?? false
+
+  return {
+    title: metadata.title,
+    markdown: recoveredMarkdown ?? serializeMarkdown(content),
+    content,
+    metadata: {
+      tags: metadata.tags,
+      pinned,
+      archived,
+    },
+    tags: metadata.tags,
+    folderId: existingNote?.folderId,
+    pinned,
+    archived,
+    deleted: existingNote?.deleted,
+    snapshotVersion: existingNote?.snapshotVersion ?? version,
+  }
+}
+
+function createOperation(note: Note): OperationEntry {
+  return {
+    id: `op-${note.id}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
+    docId: note.id,
+    type: 'document.upsert',
+    payload: {
+      markdown: note.markdown,
+      content: note.content,
+      version: note.version,
+    },
+    createdAt: Date.now(),
+  }
+}
+
+export async function saveEditorState(
+  docId: string,
+  state: Pick<EditorStateRecord, 'selection' | 'scrollTop'>,
+) {
+  const now = Date.now()
+  await storageProvider.saveEditorState({
+    docId,
+    selection: state.selection,
+    scrollTop: state.scrollTop,
+    lastOpenedAt: now,
+    updatedAt: now,
+  })
+}
+
+export function loadEditorState(docId: string) {
+  return storageProvider.loadEditorState(docId)
+}
+
+export async function saveWorkspaceState(state: Omit<WorkspaceStateRecord, 'updatedAt'>) {
+  await storageProvider.saveWorkspaceState({
+    ...state,
+    updatedAt: Date.now(),
+  })
+}
+
+export function loadWorkspaceState(id: string) {
+  return storageProvider.loadWorkspaceState(id)
+}
+
+function scheduleIdleFlush(noteId: string, flush?: () => Promise<void>) {
+  if (typeof window === 'undefined') {
+    if (flush) {
+      void flush()
+    }
+    return
+  }
+
+  window.clearTimeout(idleFlushTimers.get(noteId))
+
+  const run = () => {
+    idleFlushTimers.delete(noteId)
+    const pending = pendingSaves.get(noteId)
+    if (!pending) {
+      return
+    }
+
+    if (flush) {
+      void flush()
+      return
+    }
+
+    pendingSaves.delete(noteId)
+    void persistNote(noteId, pending.content).then((result) => {
+      pending.resolvers.forEach((resolver) => resolver(result))
+    })
+  }
+
+  const idleCallback = window.requestIdleCallback
+  if (idleCallback) {
+    const timeout = window.setTimeout(run, 600)
+    idleFlushTimers.set(noteId, timeout)
+    idleCallback(run, { timeout: 800 })
+    return
+  }
+
+  idleFlushTimers.set(noteId, window.setTimeout(run, 300))
 }
 
 async function loadLatestSnapshot(noteId: string) {
@@ -233,7 +447,11 @@ function createSnapshot(note: Note, reason: NoteSnapshot['reason']): NoteSnapsho
   return {
     id: `snapshot-${note.id}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
     noteId: note.id,
+    docId: note.id,
+    markdown: note.markdown,
     content: note.content,
+    selection: null,
+    scrollPosition: 0,
     createdAt: Date.now(),
     reason,
   }

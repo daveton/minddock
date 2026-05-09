@@ -12,6 +12,11 @@ export type DocumentValidationResult = {
   document: Record<string, unknown>
 }
 
+export type DocumentMetadata = {
+  title: string
+  tags: string[]
+}
+
 const BLOCK_TYPES = new Set([
   'paragraph',
   'heading',
@@ -60,6 +65,16 @@ export function normalizeDocument(input: Record<string, unknown> | null | undefi
     issues,
     document: root as Record<string, unknown>,
   }
+}
+
+export function extractDocumentMetadata(document: Record<string, unknown>): DocumentMetadata {
+  const root = document as ProseMirrorNode
+  const textNodes = collectTextNodes(root)
+  const heading = findFirstHeading(root)
+  const title = heading || textNodes.find((text) => text.trim())?.trim().slice(0, 80) || 'Untitled'
+  const tags = collectTags(textNodes)
+
+  return { title, tags }
 }
 
 function normalizeNode(
@@ -133,6 +148,54 @@ function createBlockId() {
 
 function cloneNode(node: ProseMirrorNode): ProseMirrorNode {
   return JSON.parse(JSON.stringify(node)) as ProseMirrorNode
+}
+
+function collectTextNodes(node: ProseMirrorNode | null | undefined, texts: string[] = []) {
+  if (!node) {
+    return texts
+  }
+
+  if (typeof node.text === 'string' && node.text.trim()) {
+    texts.push(node.text.trim())
+  }
+
+  node.content?.forEach((child) => collectTextNodes(child, texts))
+  return texts
+}
+
+function findFirstHeading(node: ProseMirrorNode | null | undefined): string {
+  if (!node) {
+    return ''
+  }
+
+  if (node.type === 'heading') {
+    return collectTextNodes(node, []).join(' ').trim()
+  }
+
+  for (const child of node.content ?? []) {
+    const heading = findFirstHeading(child)
+    if (heading) {
+      return heading
+    }
+  }
+
+  return ''
+}
+
+function collectTags(textNodes: string[]) {
+  const tags = new Set<string>()
+  const tagPattern = /(?:^|\s)#([\p{L}\p{N}_/-]+)/gu
+
+  for (const text of textNodes) {
+    for (const match of text.matchAll(tagPattern)) {
+      const tag = match[1]?.trim()
+      if (tag) {
+        tags.add(tag)
+      }
+    }
+  }
+
+  return Array.from(tags).sort((a, b) => a.localeCompare(b, 'zh-CN'))
 }
 
 function isNode(value: unknown): value is ProseMirrorNode {
