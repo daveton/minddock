@@ -830,14 +830,6 @@ function MobileWorkspace({ language, setLanguage, t }: { language: Language; set
         </section>
       </main>
 
-      <nav className="aw-mobile-tabs" aria-label="主导航">
-        {[t('mobileTabsHome'), t('mobileTabsSearch'), t('mobileTabsAi'), t('mobileTabsNotes'), t('mobileTabsMe')].map((item, index) => (
-          <button className={index === 0 ? 'is-active' : ''} key={item}>
-            <span>{index === 0 ? '●' : '○'}</span>
-            {item}
-          </button>
-        ))}
-      </nav>
     </div>
   );
 }
