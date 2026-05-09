@@ -129,12 +129,12 @@ type RestSyncForm = {
 type Language = 'en' | 'zh';
 type InspectorTab = 'stats' | 'outline' | 'ai';
 type PreferenceTab = 'general' | 'format' | 'theme' | 'icons' | 'sync';
-const preferenceTabs: Array<{ id: PreferenceTab; icon: string; label: string }> = [
-  { id: 'general', icon: '⌘', label: '通用' },
-  { id: 'format', icon: '𝑨', label: '格式' },
-  { id: 'theme', icon: '◐', label: '主题' },
-  { id: 'icons', icon: '✦', label: '图标' },
-  { id: 'sync', icon: '⟳', label: '同步' },
+const preferenceTabs: Array<{ id: PreferenceTab; icon: 'general' | 'format' | 'theme' | 'icons' | 'sync'; label: string }> = [
+  { id: 'general', icon: 'general', label: '通用' },
+  { id: 'format', icon: 'format', label: '格式' },
+  { id: 'theme', icon: 'theme', label: '主题' },
+  { id: 'icons', icon: 'icons', label: '图标' },
+  { id: 'sync', icon: 'sync', label: '同步' },
 ];
 const themeOptions = ['石墨红', '石墨黑', '石墨蓝', '木炭灰', '光天化日', '月黑风高'];
 const translations = {
@@ -615,6 +615,15 @@ function IconButton({
       {children}
     </button>
   );
+}
+
+function PrefIcon({ name }: { name: 'general' | 'format' | 'theme' | 'icons' | 'sync' }) {
+  const className = 'aw-inline-icon';
+  if (name === 'general') return <svg className={className} viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2v3M10 15v3M3 10h3M14 10h3M5 5l2.2 2.2M12.8 12.8L15 15M15 5l-2.2 2.2M7.2 12.8L5 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><circle cx="10" cy="10" r="3.25" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>;
+  if (name === 'format') return <svg className={className} viewBox="0 0 20 20" aria-hidden="true"><path d="M4 5h12M7.5 5l2.7 10M12.5 5L9.8 15" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  if (name === 'theme') return <svg className={className} viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.5a7.5 7.5 0 1 0 0 15V2.5Z" fill="currentColor" opacity="0.25"/><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>;
+  if (name === 'icons') return <svg className={className} viewBox="0 0 20 20" aria-hidden="true"><path d="m10 3 1.8 3.8L16 8l-3 2.9.7 4.1-3.7-2-3.7 2 .7-4.1L4 8l4.2-1.2L10 3Z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>;
+  return <svg className={className} viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10a6 6 0 0 1 10.2-4.2M16 10a6 6 0 0 1-10.2 4.2M14.8 4.8v2.8H12M5.2 15.2v-2.8H8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
 
 function ResizeHandle({ label, resetLabel, onDrag, onReset }: { label: string; resetLabel: string; onDrag: (delta: number) => void; onReset: () => void }) {
@@ -1553,7 +1562,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
                   key={id}
                   onClick={() => setPreferenceTab(id)}
                 >
-                  <span>{icon}</span>
+                  <span><PrefIcon name={icon} /></span>
                   {label}
                 </button>
               ))}
