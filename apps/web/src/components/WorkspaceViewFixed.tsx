@@ -30,8 +30,11 @@ import { downloadMarkdownBundle } from '../import-export/bundle';
 import {
   chooseMarkdownDirectory,
   clearMarkdownDirectory,
+  getMarkdownDirectoryPath,
   getMarkdownDirectoryName,
+  getMarkdownFileName,
   saveMarkdownFile,
+  saveMarkdownToSelectedDirectory,
   supportsDirectoryPicker,
 } from '../import-export/fileSystem';
 import { serializeMarkdown } from '../import-export/markdown';
@@ -114,7 +117,7 @@ const translations = {
     aiKnowledgeOS: 'AI Knowledge OS',
     aiSummary: 'AI Summary',
     askAiAnything: 'Ask AI anything about your notes',
-    brand: 'Atlas',
+    brand: 'MindDock',
     category: 'Category',
     commandPlaceholder: 'Search notes, summarize, connect ideas...',
     context: 'Context',
@@ -184,7 +187,7 @@ const translations = {
     aiKnowledgeOS: 'AI 知识系统',
     aiSummary: 'AI 摘要',
     askAiAnything: '询问 AI 关于笔记的任何问题',
-    brand: 'Atlas',
+    brand: 'MindDock',
     category: '分类',
     commandPlaceholder: '搜索笔记、生成总结、建立关联...',
     context: '上下文',
@@ -590,9 +593,12 @@ function MobileWorkspace({ language, setLanguage, t }: { language: Language; set
   return (
     <div className="aw-mobile">
       <header className="aw-mobile-topbar">
-        <div>
-          <div className="aw-brand">{t('brand')}</div>
-          <div className="aw-muted">{t('aiKnowledge')}</div>
+        <div className="aw-mobile-brand">
+          <img src="/logo.JPG" alt="" />
+          <div>
+            <div className="aw-brand">{t('brand')}</div>
+            <div className="aw-muted">{t('aiKnowledge')}</div>
+          </div>
         </div>
         <div className="aw-actions">
           <IconButton label={t('language')} onClick={() => setLanguage(language === 'en' ? 'zh' : 'en')}>{language === 'en' ? '中' : 'En'}</IconButton>
@@ -676,6 +682,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [preferenceTab, setPreferenceTab] = useState<PreferenceTab>('general');
   const [markdownDirectoryName, setMarkdownDirectoryName] = useState(getMarkdownDirectoryName);
+  const [lastMarkdownPath, setLastMarkdownPath] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({
     labelKey: 'loading',
     tone: 'live',
@@ -827,6 +834,44 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
     await refreshNotes(noteId);
   }, [refreshNotes]);
 
+  const syncActiveNoteToDirectory = useCallback(async () => {
+    const editor = editorRef.current;
+    const noteId = activeNoteIdRef.current;
+    if (!editor || !noteId || !getMarkdownDirectoryName()) return null;
+
+    const title = getNoteTitle(activeNote, t);
+    const fileName = getMarkdownFileName(noteId, title);
+    const result = await saveMarkdownToSelectedDirectory(serializeMarkdown(editor.getJSON()), fileName);
+
+    if (result.path) {
+      setLastMarkdownPath(result.path);
+    }
+
+    return result.path ?? null;
+  }, [activeNote, t]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 's') {
+        return;
+      }
+
+      event.preventDefault();
+      setSaveState({ labelKey: 'savingLocally', tone: 'live', detailKey: null });
+      void flushActiveNote()
+        .then(() => syncActiveNoteToDirectory())
+        .then(() => {
+          setSaveState({ labelKey: 'saved', tone: 'idle', detailKey: null });
+        })
+        .catch(() => {
+          setSaveState({ labelKey: 'saveFailed', tone: 'error', detailKey: 'saveFailedDetail' });
+        });
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [flushActiveNote, syncActiveNoteToDirectory]);
+
   useEffect(() => {
     if (!editorHostRef.current) return;
 
@@ -842,6 +887,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
       shouldSave: () => !applyingRemoteContentRef.current,
       onSaving: () => setSaveState({ labelKey: 'savingLocally', tone: 'live', detailKey: null }),
       onSaved: async () => {
+        await syncActiveNoteToDirectory();
         setSaveState({ labelKey: 'saved', tone: 'idle', detailKey: null });
         await refreshNotes(activeNoteIdRef.current ?? undefined, { promoteId: activeNoteIdRef.current ?? undefined });
       },
@@ -884,7 +930,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
       editor.destroy();
       editorRef.current = null;
     };
-  }, [refreshNotes, setEditorContent]);
+  }, [refreshNotes, setEditorContent, syncActiveNoteToDirectory]);
 
   const resizeSidebar = useCallback((delta: number) => {
     setLayout((current) =>
@@ -1022,6 +1068,10 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
         return;
       }
 
+      if (result.path) {
+        setLastMarkdownPath(result.path);
+      }
+
       setSaveState({
         labelKey: result.mode === 'directory' || result.mode === 'file-system' ? 'savedMarkdownDisk' : 'savedMarkdownDownload',
         tone: 'idle',
@@ -1057,6 +1107,11 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
 
       if (result.mode === 'selected') {
         setMarkdownDirectoryName(result.name);
+        const noteId = activeNoteIdRef.current;
+        const fileName = noteId ? getMarkdownFileName(noteId, activeTitle) : undefined;
+        setLastMarkdownPath(getMarkdownDirectoryPath(fileName));
+        await flushActiveNote();
+        await syncActiveNoteToDirectory();
         setSaveState({ labelKey: 'saveLocationSelected', tone: 'idle', detailKey: null });
         return;
       }
@@ -1072,6 +1127,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
   const handleClearSaveLocation = () => {
     clearMarkdownDirectory();
     setMarkdownDirectoryName(null);
+    setLastMarkdownPath(null);
     setSaveState({ labelKey: 'saveLocationCleared', tone: 'idle', detailKey: null });
   };
 
@@ -1129,11 +1185,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
 
   const insertGrid = () => {
     focusEditor()
-      ?.insertContent([
-        { type: 'paragraph', content: [{ type: 'text', text: '| 项目 | 内容 |' }] },
-        { type: 'paragraph', content: [{ type: 'text', text: '| --- | --- |' }] },
-        { type: 'paragraph', content: [{ type: 'text', text: '|  |  |' }] },
-      ])
+      ?.insertTable({ rows: 2, cols: 2, withHeaderRow: true })
       .run();
   };
 
@@ -1165,6 +1217,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
     <div className={`aw-desktop ${layout.contextOpen ? 'has-context' : ''} ${layout.focusMode ? 'is-focus-mode' : ''} ${showMarkdownSyntax ? 'show-markdown-syntax' : ''}`} style={workspaceStyle}>
       <aside className="aw-sidebar">
         <div className="aw-sidebar__brand">
+          <img className="aw-sidebar-logo" src="/logo.JPG" alt={t('brand')} />
           <button
             className="aw-sidebar-tune"
             aria-label="Sidebar settings"
@@ -1272,7 +1325,9 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
                   <h2>保存与同步</h2>
                   <div className="aw-save-location">
                     <span>Markdown 保存位置</span>
-                    <strong>{markdownDirectoryName ?? '未选择'}</strong>
+                    <strong title={lastMarkdownPath ?? markdownDirectoryName ?? '未选择'}>
+                      {lastMarkdownPath ?? markdownDirectoryName ?? '未选择'}
+                    </strong>
                     <div>
                       <button disabled={!supportsDirectoryPicker()} onClick={() => { void handleChooseSaveLocation(); }}>
                         选择文件夹
@@ -1284,7 +1339,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
                   </div>
                   <p>
                     {supportsDirectoryPicker()
-                      ? '选择后，导出 Markdown 会直接保存到这个文件夹。笔记仍会实时保存在本浏览器 IndexedDB 中。'
+                      ? '选择后，自动保存和导出 Markdown 会写入上方路径。浏览器不会向网页暴露磁盘绝对路径，笔记仍会实时保存在本浏览器 IndexedDB 中。'
                       : '当前浏览器不支持选择文件夹，导出时会使用下载或文件保存对话框。'}
                   </p>
                   <label className="aw-check-row">
@@ -1530,7 +1585,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
                 <button type="button" aria-label="斜体" onClick={toggleItalic}><em>I</em></button>
                 <button type="button" aria-label="插入标签" onClick={insertTag}>⌫</button>
                 <button type="button" aria-label="插入关联" onClick={insertMention}>@</button>
-                <button type="button" aria-label="插入表格文本" onClick={insertGrid}>▦</button>
+                <button type="button" aria-label="插入 2x2 表格" onClick={insertGrid}>▦</button>
                 <button type="button" aria-label="更多">⋮</button>
               </div>
             ) : null}

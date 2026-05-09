@@ -1,5 +1,6 @@
 type SaveMarkdownResult = {
   mode: 'directory' | 'file-system' | 'download' | 'cancelled'
+  path?: string
 }
 
 const markdownHandles = new Map<string, FileSystemFileHandle>()
@@ -11,6 +12,14 @@ export function supportsDirectoryPicker() {
 
 export function getMarkdownDirectoryName() {
   return markdownDirectoryHandle?.name ?? null
+}
+
+export function getMarkdownDirectoryPath(fileName?: string) {
+  if (!markdownDirectoryHandle) {
+    return null
+  }
+
+  return [markdownDirectoryHandle.name, fileName].filter(Boolean).join('/')
 }
 
 export async function chooseMarkdownDirectory() {
@@ -45,13 +54,7 @@ export async function saveMarkdownFile(noteId: string, markdown: string, title: 
   const suggestedName = `${toSafeFileName(title || noteId)}.md`
 
   if (markdownDirectoryHandle) {
-    const permission = await ensureHandlePermission(markdownDirectoryHandle)
-
-    if (permission) {
-      const handle = await markdownDirectoryHandle.getFileHandle(suggestedName, { create: true })
-      await writeFileHandle(handle, markdown)
-      return { mode: 'directory' }
-    }
+    return saveMarkdownToSelectedDirectory(markdown, suggestedName)
   }
 
   if (supportsFileSystemAccess()) {
@@ -69,6 +72,28 @@ export async function saveMarkdownFile(noteId: string, markdown: string, title: 
 
   downloadMarkdown(suggestedName, markdown)
   return { mode: 'download' }
+}
+
+export async function saveMarkdownToSelectedDirectory(markdown: string, fileName: string): Promise<SaveMarkdownResult> {
+  if (!markdownDirectoryHandle) {
+    return { mode: 'cancelled' }
+  }
+
+  const permission = await ensureHandlePermission(markdownDirectoryHandle)
+
+  if (!permission) {
+    return { mode: 'cancelled' }
+  }
+
+  const safeName = `${toSafeFileName(fileName.replace(/\.md$/i, ''))}.md`
+  const handle = await markdownDirectoryHandle.getFileHandle(safeName, { create: true })
+  await writeFileHandle(handle, markdown)
+
+  return { mode: 'directory', path: getMarkdownDirectoryPath(safeName) ?? safeName }
+}
+
+export function getMarkdownFileName(noteId: string, title: string) {
+  return `${toSafeFileName(title || noteId)}.md`
 }
 
 function supportsFileSystemAccess() {

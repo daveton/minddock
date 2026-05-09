@@ -91,6 +91,21 @@ button {
   letter-spacing: 0;
 }
 
+.aw-mobile-brand {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.aw-mobile-brand img {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
 .aw-muted {
   color: var(--aw-faint-ink);
   font-size: 12px;
@@ -383,8 +398,16 @@ button {
 
   .aw-sidebar__brand {
     border-bottom: 0;
-    justify-content: flex-end;
+    justify-content: space-between;
     padding: 0 18px;
+  }
+
+  .aw-sidebar-logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    object-fit: cover;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
   }
 
   .aw-preferences {
@@ -1193,7 +1216,7 @@ button {
     position: relative;
   }
 
-  .minddock-editor > *:not(h1, h2, h3, h4, h5, h6):hover::before {
+  .minddock-editor > *:not(h1, h2, h3, h4, h5, h6, .tableWrapper):hover::before {
     position: absolute;
     left: -38px;
     top: 0.1em;
@@ -1505,6 +1528,141 @@ button {
     border-left: 3px solid #e64949;
     background: #f6f6f6;
     padding: 14px 18px;
+  }
+
+  .minddock-editor .tableWrapper {
+    overflow-x: auto;
+    margin: 22px 0 28px;
+  }
+
+  .minddock-editor table {
+    width: min(100%, 720px);
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid #d8d8d8;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #3c3c3c;
+    overflow: hidden;
+  }
+
+  .minddock-editor th,
+  .minddock-editor td {
+    position: relative;
+    min-width: 120px;
+    height: 54px;
+    border-right: 1px solid #d8d8d8;
+    border-bottom: 1px solid #d8d8d8;
+    padding: 12px 14px;
+    vertical-align: top;
+  }
+
+  .minddock-editor th {
+    background: #f4f5f6;
+    font-weight: 600;
+  }
+
+  .minddock-editor tr:last-child td,
+  .minddock-editor tr:last-child th {
+    border-bottom: 0;
+  }
+
+  .minddock-editor th:last-child,
+  .minddock-editor td:last-child {
+    border-right: 0;
+  }
+
+  .minddock-editor .selectedCell::after {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: rgba(224, 85, 85, 0.12);
+    content: '';
+    pointer-events: none;
+  }
+
+  .minddock-editor th p,
+  .minddock-editor td p {
+    margin: 0;
+  }
+
+  .minddock-table-more {
+    position: fixed;
+    z-index: 1001;
+    display: grid;
+    width: 28px;
+    height: 34px;
+    place-items: center;
+    border-radius: 8px;
+    background: transparent;
+    color: #e05555;
+    cursor: pointer;
+    font-size: 24px;
+    line-height: 1;
+  }
+
+  .minddock-table-more:hover,
+  .minddock-table-more:focus-visible {
+    background: rgba(224, 85, 85, 0.1);
+    outline: 0;
+  }
+
+  .minddock-table-menu {
+    position: fixed;
+    z-index: 1002;
+    width: 280px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.18);
+    border-radius: 10px;
+    background: rgba(226, 226, 226, 0.96);
+    color: #202020;
+    padding: 8px 0;
+    box-shadow: 0 18px 52px rgba(0, 0, 0, 0.22);
+    backdrop-filter: blur(20px);
+  }
+
+  .minddock-table-menu__group {
+    padding: 4px 14px;
+  }
+
+  .minddock-table-menu__group + .minddock-table-menu__group {
+    border-top: 1px solid rgba(0, 0, 0, 0.12);
+  }
+
+  .minddock-table-menu button {
+    display: grid;
+    width: 100%;
+    min-height: 36px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    padding: 0 14px;
+    text-align: left;
+    cursor: pointer;
+    font-size: 18px;
+  }
+
+  .minddock-table-menu button:hover {
+    background: rgba(0, 0, 0, 0.07);
+  }
+
+  .minddock-table-menu button:disabled {
+    color: rgba(0, 0, 0, 0.34);
+    cursor: default;
+  }
+
+  .minddock-table-menu button:disabled:hover {
+    background: transparent;
+  }
+
+  .minddock-table-menu kbd {
+    color: rgba(0, 0, 0, 0.34);
+    font-family: inherit;
+    font-size: 18px;
   }
 
   .minddock-editor pre {

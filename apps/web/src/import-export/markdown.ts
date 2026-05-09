@@ -35,6 +35,13 @@ function serializeBlock(node: ProseMirrorNode, context: { listDepth?: number; or
       return `-[${node.attrs?.checked ? 'x' : ' '}] ${serializeInlineChildren(node)}`
     case 'codeBlock':
       return `\`\`\`\n${serializeTextChildren(node)}\n\`\`\``
+    case 'table':
+      return serializeTable(node)
+    case 'tableRow':
+      return serializeTableRow(node)
+    case 'tableCell':
+    case 'tableHeader':
+      return serializeInlineChildren(node).replace(/\|/g, '\\|')
     case 'horizontalRule':
       return '---'
     case 'hardBreak':
@@ -68,6 +75,26 @@ function serializeList(node: ProseMirrorNode, marker: '-' | '1.', startIndex = 1
       return [`${itemMarker} ${firstLine}`, continuation].filter(Boolean).join('\n')
     })
     .join('\n')
+}
+
+function serializeTable(node: ProseMirrorNode) {
+  const rows = node.content ?? []
+  if (rows.length === 0) {
+    return ''
+  }
+
+  const columnCount = Math.max(...rows.map((row) => row.content?.length ?? 0), 1)
+  const [firstRow, ...restRows] = rows
+  const header = serializeTableRow(firstRow)
+  const divider = `| ${Array.from({ length: columnCount }, () => '---').join(' | ')} |`
+  const body = restRows.map((row) => serializeTableRow(row)).join('\n')
+
+  return [header, divider, body].filter(Boolean).join('\n')
+}
+
+function serializeTableRow(node: ProseMirrorNode) {
+  const cells = (node.content ?? []).map((cell) => serializeBlock(cell).replace(/\n/g, '<br>'))
+  return `| ${cells.join(' | ')} |`
 }
 
 function applyMarks(text: string, marks: NonNullable<ProseMirrorNode['marks']>) {

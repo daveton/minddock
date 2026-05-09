@@ -28,6 +28,10 @@ const BLOCK_TYPES = new Set([
   'listItem',
   'taskItem',
   'horizontalRule',
+  'table',
+  'tableRow',
+  'tableCell',
+  'tableHeader',
 ])
 
 export function normalizeDocument(input: Record<string, unknown> | null | undefined): DocumentValidationResult {
