@@ -130,11 +130,11 @@ type Language = 'en' | 'zh';
 type InspectorTab = 'stats' | 'outline' | 'ai';
 type PreferenceTab = 'general' | 'format' | 'theme' | 'icons' | 'sync';
 const preferenceTabs: Array<{ id: PreferenceTab; icon: string; label: string }> = [
-  { id: 'general', icon: '☷', label: '通用' },
-  { id: 'format', icon: 'Aᴀ', label: '格式' },
-  { id: 'theme', icon: '▥', label: '主题' },
-  { id: 'icons', icon: '◰', label: '图标' },
-  { id: 'sync', icon: '☁', label: '同步' },
+  { id: 'general', icon: '⌘', label: '通用' },
+  { id: 'format', icon: '𝑨', label: '格式' },
+  { id: 'theme', icon: '◐', label: '主题' },
+  { id: 'icons', icon: '✦', label: '图标' },
+  { id: 'sync', icon: '⟳', label: '同步' },
 ];
 const themeOptions = ['石墨红', '石墨黑', '石墨蓝', '木炭灰', '光天化日', '月黑风高'];
 const translations = {
