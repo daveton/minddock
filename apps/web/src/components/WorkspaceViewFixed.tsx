@@ -1977,7 +1977,13 @@ function DesktopWorkspace({ t }: { t: (key: I18nKey) => string }) {
           </div>
         ) : null}
         {inspectorOpen ? (
-          <aside className="aw-stat-popover">
+          <>
+            <div 
+              className="aw-stat-popover-overlay" 
+              onClick={() => setInspectorOpen(false)}
+              aria-hidden="true"
+            />
+            <aside className="aw-stat-popover">
             <h2>统计</h2>
             <div className="aw-stat-tabs">
               <button
@@ -2072,6 +2078,7 @@ function DesktopWorkspace({ t }: { t: (key: I18nKey) => string }) {
               </div>
             ) : null}
           </aside>
+          </>
         ) : null}
         <article className="aw-editor">
           {saveState.detailKey ? (

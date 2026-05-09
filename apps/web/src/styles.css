@@ -1121,6 +1121,15 @@ button {
     opacity: 1;
   }
 
+  .aw-stat-popover-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 7;
+  }
+
   .aw-stat-popover {
     position: fixed;
     top: 76px;
