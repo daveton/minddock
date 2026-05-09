@@ -1,10 +1,10 @@
 :root {
   color-scheme: light;
-  --aw-bg: #e9edf5;
-  --bg-app: #f6f6f4;
-  --bg-editor: #f8f9fc;
-  --bg-sidebar: #171a22;
-  --bg-note-list: #f7f8fb;
+  --aw-bg: #ffffff;
+  --bg-app: #ffffff;
+  --bg-editor: #ffffff;
+  --bg-sidebar: #292e31;
+  --bg-note-list: #fbfbfb;
   --aw-panel: #ffffff;
   --aw-glass: rgba(255, 255, 255, 0.62);
   --aw-panel-muted: #f1f0ec;
@@ -22,7 +22,7 @@
   --aw-green: #4d6f61;
   --aw-blue: #315f8c;
   --aw-clay: #a75f3b;
-  --aw-accent: #5b6df6;
+  --aw-accent: #e84e55;
   --aw-black: #121312;
   --space-1: 4px;
   --space-2: 8px;
@@ -42,7 +42,7 @@
   --sidebar-width: 260px;
   --list-width: 320px;
   --context-width: 0px;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", Inter, ui-sans-serif, sans-serif;
+  font-family: "BearSansUI-Regular", -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", Inter, ui-sans-serif, sans-serif;
   background: var(--aw-bg);
   color: var(--aw-ink);
   -webkit-font-smoothing: antialiased;
@@ -73,10 +73,14 @@ button {
   width: 100%;
   height: 100vh;
   overflow: hidden;
-  background:
-    radial-gradient(1200px 700px at -8% -15%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 65%),
-    radial-gradient(900px 560px at 108% -10%, rgba(152, 197, 255, 0.26) 0%, rgba(152, 197, 255, 0) 62%),
-    linear-gradient(180deg, #f6f9ff 0%, var(--aw-bg) 100%);
+  background: #ffffff;
+}
+
+.aw-svg {
+  width: 1em;
+  height: 1em;
+  display: block;
+  flex: 0 0 auto;
 }
 
 .aw-mobile {
@@ -2163,5 +2167,385 @@ button {
   .aw-editor {
     padding-right: 44px;
     padding-left: 44px;
+  }
+}
+
+@media (min-width: 860px) {
+  .aw-desktop {
+    grid-template-columns: 257px 1px 314px 1px minmax(0, 1fr) var(--context-width);
+    background: #ffffff;
+  }
+
+  .aw-sidebar {
+    background: #2c3134;
+    color: #c7c9c9;
+  }
+
+  .aw-sidebar__brand {
+    height: 74px;
+    padding: 0 28px;
+  }
+
+  .aw-window-controls {
+    display: flex;
+    gap: 12px;
+  }
+
+  .aw-window-controls span {
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    background: #ff5f57;
+  }
+
+  .aw-window-controls span:nth-child(2) {
+    background: #febc2e;
+  }
+
+  .aw-window-controls span:nth-child(3) {
+    background: #28c840;
+  }
+
+  .aw-settings-button {
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    color: #aeb2b2;
+    font-size: 30px;
+  }
+
+  .aw-space-list {
+    gap: 24px;
+    padding: 5px 11px 24px;
+  }
+
+  .aw-space-list button,
+  .aw-tree-heading {
+    height: 40px;
+    border-radius: 7px;
+    color: #d2d3d3;
+    padding: 0 14px;
+    font-size: 20px;
+    font-weight: 650;
+  }
+
+  .aw-space-list button.is-child {
+    padding-left: 56px;
+  }
+
+  .aw-tree-icon {
+    width: 26px;
+    color: #a3a7a7;
+    font-size: 22px;
+  }
+
+  .aw-space-list button:hover,
+  .aw-space-list .is-active {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+  }
+
+  .aw-note-list {
+    background: #fbfbfb;
+  }
+
+  .aw-note-list__header {
+    height: 74px;
+    border-bottom: 0;
+    background: #ffffff;
+    padding: 0 14px 0 28px;
+  }
+
+  .aw-note-list__header > div:first-child {
+    min-width: 0;
+  }
+
+  .aw-note-list__scope {
+    display: flex !important;
+    align-items: center;
+    gap: 12px;
+    margin: 0;
+    color: #3f3f3f !important;
+    font-size: 23px !important;
+    font-weight: 800;
+  }
+
+  .aw-note-list__header strong {
+    display: none !important;
+  }
+
+  .aw-note-list__actions {
+    display: flex;
+    gap: 16px;
+  }
+
+  .aw-note-list__actions .aw-icon-button,
+  .aw-editor-titleline button,
+  .aw-editor-tools button {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    box-shadow: none;
+    color: #8d8d8d;
+    font-size: 29px;
+    opacity: 1;
+    padding: 0;
+  }
+
+  .aw-note-list__items {
+    padding: 0 17px 20px 15px;
+  }
+
+  .aw-note-list__items button {
+    min-height: 119px;
+    border-bottom: 1px solid #e3e3e3;
+    padding: 18px 18px 16px;
+  }
+
+  .aw-note-list__items .is-active {
+    border-radius: 6px;
+    background: #f0f1f3;
+  }
+
+  .aw-note-list__items .is-active::before {
+    display: none;
+  }
+
+  .aw-note-list__items strong {
+    color: #424242;
+    font-size: 20px;
+    font-weight: 850;
+    line-height: 1.25;
+  }
+
+  .aw-note-list__items span {
+    margin-top: 8px;
+    color: #8c8c8c;
+    font-size: 20px;
+    font-weight: 650;
+    line-height: 1.45;
+  }
+
+  .aw-note-list__items small,
+  .aw-note-list__footer small {
+    color: #aaa;
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  .aw-editor-shell {
+    background: #ffffff;
+  }
+
+  .aw-editor-toolbar {
+    height: 74px;
+    border-bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 0 22px;
+  }
+
+  .aw-editor-titleline strong {
+    display: none;
+  }
+
+  .aw-editor-tools {
+    gap: 18px;
+  }
+
+  .aw-editor-tools .aw-biu-toggle {
+    width: 77px;
+    font-size: 30px;
+  }
+
+  .aw-editor-tools .is-active {
+    background: #eef0f3;
+  }
+
+  .aw-editor {
+    max-width: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: #ffffff;
+    box-shadow: none;
+    padding: 8px 11vw 120px 12.6vw;
+  }
+
+  .minddock-editor {
+    max-width: 920px;
+    min-height: 72vh;
+    margin: 0;
+    color: #4c4c4c;
+    font-size: 21px;
+    font-weight: 580;
+    line-height: 1.72;
+  }
+
+  .minddock-editor h1 {
+    margin: 0 0 18px;
+    color: #3a3a3a;
+    font-family: "BearSansUIHeading-Regular", -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+    font-size: 45px;
+    font-weight: 900;
+    line-height: 1.12;
+  }
+
+  .minddock-editor h2 {
+    margin: 54px 0 18px;
+    color: #4a4a4a;
+    font-size: 28px;
+    font-weight: 850;
+  }
+
+  .minddock-editor p,
+  .minddock-editor li {
+    margin: 0 0 14px;
+  }
+
+  .minddock-tag {
+    background: #e8e8e8;
+    color: #5f5f5f;
+    font-size: 0.88em;
+    font-weight: 760;
+  }
+
+  .minddock-task-item {
+    grid-template-columns: 31px minmax(0, 1fr);
+    gap: 12px;
+    color: #8a8a8a;
+    font-size: 21px;
+    font-weight: 720;
+    line-height: 1.45;
+  }
+
+  .minddock-task-box {
+    width: 24px;
+    height: 24px;
+    border-color: #d4d4d4;
+    border-radius: 6px;
+  }
+
+  .aw-stat-popover {
+    top: 75px;
+    right: 18px;
+    width: 428px;
+    border-color: rgba(0, 0, 0, 0.16);
+    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.96);
+    padding: 18px 28px 34px;
+    box-shadow: 0 24px 46px rgba(0, 0, 0, 0.22);
+  }
+
+  .aw-stat-popover::before {
+    position: absolute;
+    top: -12px;
+    right: 70px;
+    width: 24px;
+    height: 24px;
+    border-top: 1px solid rgba(0, 0, 0, 0.16);
+    border-left: 1px solid rgba(0, 0, 0, 0.16);
+    background: rgba(255, 255, 255, 0.96);
+    content: '';
+    transform: rotate(45deg);
+  }
+
+  .aw-stat-popover h2 {
+    margin-bottom: 16px;
+    color: #808080;
+    font-size: 20px;
+    font-weight: 800;
+  }
+
+  .aw-stat-grid {
+    gap: 12px;
+  }
+
+  .aw-stat-grid section {
+    min-height: 114px;
+    border-radius: 12px;
+    background: #f1f2f4;
+    padding: 18px;
+  }
+
+  .aw-stat-grid strong {
+    color: #414141;
+    font-size: 31px;
+    font-weight: 900;
+  }
+
+  .aw-stat-grid span,
+  .aw-stat-dates span {
+    color: #8d8d8d;
+    font-size: 15px;
+    font-weight: 800;
+  }
+
+  .aw-more-menu {
+    top: 49px;
+    right: 8px;
+    width: 248px;
+    border-radius: 8px;
+    background: rgba(225, 225, 225, 0.97);
+  }
+
+  .aw-more-menu button {
+    min-height: 28px;
+    padding: 0 20px;
+    font-size: 18px;
+  }
+
+  .aw-preferences {
+    top: 268px;
+    width: 812px;
+    max-height: 620px;
+    border-color: rgba(0, 0, 0, 0.18);
+    border-radius: 14px;
+    background: rgba(231, 231, 231, 0.94);
+    box-shadow: 0 28px 72px rgba(0, 0, 0, 0.28);
+  }
+
+  .aw-preferences__close {
+    display: none;
+  }
+
+  .aw-preferences nav {
+    height: 112px;
+    background: rgba(226, 226, 226, 0.96);
+  }
+
+  .aw-preferences nav button {
+    width: 78px;
+    height: 64px;
+    border-radius: 9px;
+  }
+
+  .aw-preferences nav .is-active {
+    background: #d7d9db;
+    color: #0777ff;
+  }
+
+  .aw-format-dock {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    max-width: none;
+    margin: 0;
+    transform: translateX(-50%);
+  }
+
+  .aw-floating-toolbar {
+    gap: 10px;
+    border-radius: 8px;
+    background: rgba(224, 224, 224, 0.94);
+    padding: 7px 13px;
+  }
+
+  .aw-floating-toolbar button {
+    min-width: 34px;
+    height: 30px;
+    font-size: 20px;
   }
 }

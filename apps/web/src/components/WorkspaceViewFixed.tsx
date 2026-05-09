@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Dispatch, SetStateAction } from 'react';
+import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import type { Editor } from '@tiptap/core';
 import { bindEditorEvents } from '../editor/events';
 import { createEditor } from '../editor/setup';
@@ -591,6 +591,73 @@ function collectHeadings(value: unknown, outline: Array<{ id: string; level: num
   }
 }
 
+type SvgIconName =
+  | 'archive'
+  | 'back'
+  | 'boldItalicUnderline'
+  | 'calendar'
+  | 'check'
+  | 'chevron'
+  | 'code'
+  | 'design'
+  | 'document'
+  | 'edit'
+  | 'history'
+  | 'image'
+  | 'info'
+  | 'list'
+  | 'lock'
+  | 'more'
+  | 'music'
+  | 'note'
+  | 'planet'
+  | 'plus'
+  | 'search'
+  | 'settings'
+  | 'sparkle'
+  | 'stats'
+  | 'tag'
+  | 'task'
+  | 'trash'
+  | 'video';
+
+function SvgIcon({ name, className = 'aw-svg' }: { name: SvgIconName; className?: string }) {
+  const common = {
+    className,
+    viewBox: '0 0 24 24',
+    'aria-hidden': true,
+  };
+
+  if (name === 'archive') return <svg {...common}><path d="M5 8h14v11H5zM4 5h16v3H4zM9 12h6" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  if (name === 'back') return <svg {...common}><path d="m15 6-6 6 6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  if (name === 'boldItalicUnderline') return <svg {...common}><path d="M6 6h4.8a2.8 2.8 0 0 1 0 5.6H6V6Zm0 5.6h5.6a3.2 3.2 0 0 1 0 6.4H6v-6.4ZM17.5 6l-1.7 9M14 18h5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  if (name === 'calendar') return <svg {...common}><path d="M7 4v3M17 4v3M5 8h14M6 6h12a1 1 0 0 1 1 1v12H5V7a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  if (name === 'check') return <svg {...common}><rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="m8 12 2.5 2.5L16 9" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  if (name === 'chevron') return <svg {...common}><path d="m8 10 4 4 4-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  if (name === 'code') return <svg {...common}><path d="m9 8-4 4 4 4M15 8l4 4-4 4M13 6l-2 12" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  if (name === 'design') return <svg {...common}><path d="M5 19h14L5 5v14ZM8 13v3h3" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  if (name === 'document') return <svg {...common}><path d="M7 3h8l3 3v15H7V3Z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M15 3v4h4M10 11h5M10 15h5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>;
+  if (name === 'edit') return <svg {...common}><path d="M5 18.5V21h2.5L18.8 9.7l-2.5-2.5L5 18.5ZM15.2 5.9l1.4-1.4a1.6 1.6 0 0 1 2.3 0l.6.6a1.6 1.6 0 0 1 0 2.3l-1.4 1.4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  if (name === 'history') return <svg {...common}><path d="M4 12a8 8 0 1 0 2.3-5.7M4 5v5h5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  if (name === 'image') return <svg {...common}><rect x="4" y="6" width="16" height="12" rx="2" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="m7 16 4-4 3 3 2-2 3 3M8.5 9.5h.01" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  if (name === 'info') return <svg {...common}><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.8"/><path d="M12 10v6M12 7h.01" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>;
+  if (name === 'list') return <svg {...common}><path d="M8 7h11M8 12h11M8 17h11M5 7h.01M5 12h.01M5 17h.01" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>;
+  if (name === 'lock') return <svg {...common}><path d="M7 10V8a5 5 0 0 1 10 0v2M6 10h12v10H6V10Z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  if (name === 'more') return <svg {...common}><path d="M12 6h.01M12 12h.01M12 18h.01" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>;
+  if (name === 'music') return <svg {...common}><path d="M9 18a3 3 0 1 1-2-2.82V5l11-2v11a3 3 0 1 1-2-2.82V7L9 8.2V18Z" fill="currentColor"/></svg>;
+  if (name === 'note') return <svg {...common}><path d="M7 4h10v16H7zM10 8h4M10 12h4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  if (name === 'planet') return <svg {...common}><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" strokeWidth="1.6"/><path d="M3.5 14.5c3.5 1.9 10.7.6 15.2-3s2.4-5.8-1.8-4.9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>;
+  if (name === 'plus') return <svg {...common}><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>;
+  if (name === 'search') return <svg {...common}><circle cx="10.8" cy="10.8" r="6.8" fill="none" stroke="currentColor" strokeWidth="1.9"/><path d="m16 16 4 4" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"/></svg>;
+  if (name === 'settings') return <svg {...common}><path d="M5 7h9M18 7h1M5 12h1M10 12h9M5 17h9M18 17h1" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><circle cx="16" cy="7" r="2" fill="none" stroke="currentColor" strokeWidth="1.6"/><circle cx="8" cy="12" r="2" fill="none" stroke="currentColor" strokeWidth="1.6"/><circle cx="16" cy="17" r="2" fill="none" stroke="currentColor" strokeWidth="1.6"/></svg>;
+  if (name === 'sparkle') return <svg {...common}><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3ZM5 16l.7 2.1L8 19l-2.3.9L5 22l-.7-2.1L2 19l2.3-.9L5 16Z" fill="currentColor"/></svg>;
+  if (name === 'stats') return <svg {...common}><path d="M6 18V9M12 18V5M18 18v-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>;
+  if (name === 'tag') return <svg {...common}><path d="M4 4h8l8 8-8 8-8-8V4Z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><circle cx="8.5" cy="8.5" r="1" fill="currentColor"/></svg>;
+  if (name === 'task') return <svg {...common}><rect x="5" y="5" width="14" height="14" rx="3" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="m8 12 2.4 2.4L16 9" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  if (name === 'trash') return <svg {...common}><path d="M5 7h14M9 7V5h6v2M7 7l1 13h8l1-13" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  return <svg {...common}><rect x="5" y="7" width="14" height="10" rx="2" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="m10 10 4 2-4 2v-4Z" fill="currentColor"/></svg>;
+}
+
 function IconButton({
   label,
   children,
@@ -599,7 +666,7 @@ function IconButton({
   onClick,
 }: {
   label: string;
-  children: string;
+  children: ReactNode;
   dark?: boolean;
   active?: boolean;
   onClick?: () => void;
@@ -682,7 +749,7 @@ function TagTree({
             onClick={() => onSelect(node.path)}
             style={{ '--tag-depth': depth } as React.CSSProperties}
           >
-            <span className="aw-tree-icon">{node.children.length > 0 ? '▾' : '#'}</span>
+            <span className="aw-tree-icon"><SvgIcon name={node.children.length > 0 ? 'chevron' : 'tag'} /></span>
             <span>{node.name}</span>
             <small>{node.noteCount}</small>
           </button>
@@ -713,8 +780,8 @@ function MobileWorkspace({ language, setLanguage, t }: { language: Language; set
         </div>
         <div className="aw-actions">
           <IconButton label={t('language')} onClick={() => setLanguage(language === 'en' ? 'zh' : 'en')}>{language === 'en' ? '中' : 'En'}</IconButton>
-          <IconButton label={t('mobileTabsSearch')}>⌕</IconButton>
-          <IconButton label={t('newNote')} dark>+</IconButton>
+          <IconButton label={t('mobileTabsSearch')}><SvgIcon name="search" /></IconButton>
+          <IconButton label={t('newNote')} dark><SvgIcon name="plus" /></IconButton>
         </div>
       </header>
 
@@ -744,7 +811,7 @@ function MobileWorkspace({ language, setLanguage, t }: { language: Language; set
             <article className="aw-note-card" key={note.title}>
               <div className="aw-note-card__top">
                 <h2>{note.title}</h2>
-                <IconButton label={t('noteOpened')}>↗</IconButton>
+                <IconButton label={t('noteOpened')}><SvgIcon name="edit" /></IconButton>
               </div>
               <p>{note.desc}</p>
               <div className="aw-ai-summary">
@@ -775,7 +842,7 @@ function MobileWorkspace({ language, setLanguage, t }: { language: Language; set
   );
 }
 
-function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKey) => string }) {
+function DesktopWorkspace({ t }: { t: (key: I18nKey) => string }) {
   const [layout, setLayout] = useState<WorkspaceLayout>(loadLayout);
   const [showMarkdownSyntax, setShowMarkdownSyntax] = useState(loadMarkdownSyntaxPreference);
   const [formatToolbarOpen, setFormatToolbarOpen] = useState(true);
@@ -1533,7 +1600,11 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
     <div className={`aw-desktop ${layout.contextOpen ? 'has-context' : ''} ${layout.focusMode ? 'is-focus-mode' : ''} ${showMarkdownSyntax ? 'show-markdown-syntax' : ''}`} style={workspaceStyle}>
       <aside className="aw-sidebar">
         <div className="aw-sidebar__brand">
-          <img className="aw-sidebar-logo" src="/logo.JPG" alt={t('brand')} />
+          <div className="aw-window-controls" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
           <button
             className="aw-settings-button"
             onClick={() => setPreferencesOpen((current) => !current)}
@@ -1541,7 +1612,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
             aria-label="打开设置"
             title="设置"
           >
-            ⚙
+            <SvgIcon name="settings" />
           </button>
         </div>
         {preferencesOpen ? (
@@ -1746,15 +1817,43 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
         ) : null}
 
         <nav className="aw-space-list" aria-label={t('workspace')}>
+          <section className="aw-tree-section aw-system-section">
+            <button>
+              <span className="aw-tree-icon"><SvgIcon name="note" /></span>
+              笔记
+            </button>
+            <button>
+              <span className="aw-tree-icon"><SvgIcon name="archive" /></span>
+              无标签
+            </button>
+            <button>
+              <span className="aw-tree-icon"><SvgIcon name="task" /></span>
+              待办事项
+            </button>
+            <button>
+              <span className="aw-tree-icon"><SvgIcon name="calendar" /></span>
+              今天
+            </button>
+            <button>
+              <span className="aw-tree-icon"><SvgIcon name="lock" /></span>
+              已加密
+            </button>
+            <button>
+              <span className="aw-tree-icon"><SvgIcon name="trash" /></span>
+              废纸篓
+            </button>
+          </section>
           <section className="aw-tree-section">
             <button
               className={`aw-tree-heading ${activeTagPath === null ? 'is-active' : ''}`}
               onClick={() => setActiveTagPath(null)}
             >
-              <span>#</span>
-              {t('allNotes')}
+              <span className="aw-tree-icon"><SvgIcon name="planet" /></span>
+              personal
               <small>{notes.length}</small>
             </button>
+            <button className="is-child"><span className="aw-tree-icon"><SvgIcon name="code" /></span>coder</button>
+            <button className="is-child"><span className="aw-tree-icon"><SvgIcon name="design" /></span>design</button>
             {tagTree.length > 0 ? (
               <TagTree
                 nodes={tagTree}
@@ -1763,10 +1862,13 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
               />
             ) : (
               <button className={activeTagPath === null ? 'is-active' : ''} onClick={() => setActiveTagPath(null)}>
-                <span className="aw-tree-icon">#</span>
+                <span className="aw-tree-icon"><SvgIcon name="tag" /></span>
                 {t('untagged')}
               </button>
             )}
+            <button className="is-child"><span className="aw-tree-icon"><SvgIcon name="history" /></span>历史</button>
+            <button className="is-child"><span className="aw-tree-icon"><SvgIcon name="video" /></span>唐朝</button>
+            <button className="is-child"><span className="aw-tree-icon"><SvgIcon name="music" /></span>music</button>
           </section>
         </nav>
       </aside>
@@ -1780,10 +1882,13 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
       <section className="aw-note-list">
         <header className="aw-note-list__header">
           <div>
+            <span className="aw-note-list__scope"><SvgIcon name="note" /> {listTitle}</span>
             <strong>{listTitle}</strong>
-            <span>{language === 'zh' ? `${filteredNotes.length} ${t('localNotes')}` : `${filteredNotes.length} ${t('localNotes')}`}</span>
           </div>
-          <IconButton label={t('newNote')} onClick={() => { void handleCreateNote(); }}>+</IconButton>
+          <div className="aw-note-list__actions">
+            <IconButton label={t('newNote')} onClick={() => { void handleCreateNote(); }}><SvgIcon name="edit" /></IconButton>
+            <IconButton label={t('mobileTabsSearch')}><SvgIcon name="search" /></IconButton>
+          </div>
         </header>
         <div className="aw-note-list__items">
           {filteredNotes.map((note) => (
@@ -1820,8 +1925,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
       <main className="aw-editor-shell" ref={editorShellRef}>
         <div className={`aw-editor-toolbar ${editorNavbarVisible || moreMenuOpen || inspectorOpen ? 'is-visible' : 'is-hidden'}`}>
           <div className="aw-editor-titleline">
-            <button aria-label="Back">‹</button>
-            <button aria-label="Forward">›</button>
+            <button aria-label="Back"><SvgIcon name="back" /></button>
             <strong>{activeTitle}</strong>
           </div>
           <div className="aw-editor-tools">
@@ -1831,7 +1935,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
               className={formatToolbarOpen ? 'is-active aw-biu-toggle' : 'aw-biu-toggle'}
               onClick={() => setFormatToolbarOpen((current) => !current)}
             >
-              B<em>I</em><u>U</u>
+              <SvgIcon name="boldItalicUnderline" />
             </button>
             <button
               aria-label="Note statistics"
@@ -1839,7 +1943,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
               className={inspectorOpen ? 'is-active' : ''}
               onClick={() => setInspectorOpen((current) => !current)}
             >
-              ⓘ
+              <SvgIcon name="info" />
             </button>
             <button
               aria-label="More"
@@ -1847,7 +1951,7 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
               className={moreMenuOpen ? 'is-active' : ''}
               onClick={() => setMoreMenuOpen((current) => !current)}
             >
-              ⋮
+              <SvgIcon name="more" />
             </button>
           </div>
         </div>
@@ -1872,21 +1976,21 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
                 className={inspectorTab === 'stats' ? 'is-active' : ''}
                 onClick={() => setInspectorTab('stats')}
               >
-                ▥
+              <SvgIcon name="stats" />
               </button>
               <button
                 aria-label={t('inspectorOutline')}
                 className={inspectorTab === 'outline' ? 'is-active' : ''}
                 onClick={() => setInspectorTab('outline')}
               >
-                ☷
+              <SvgIcon name="list" />
               </button>
               <button
                 aria-label={t('inspectorAi')}
                 className={inspectorTab === 'ai' ? 'is-active' : ''}
                 onClick={() => setInspectorTab('ai')}
               >
-                ✦
+              <SvgIcon name="back" />
               </button>
             </div>
             {inspectorTab === 'stats' ? (
@@ -1972,14 +2076,15 @@ function DesktopWorkspace({ language, t }: { language: Language; t: (key: I18nKe
             {formatToolbarOpen ? (
               <div className="aw-floating-toolbar" role="toolbar" aria-label="编辑功能区">
                 <button type="button" aria-label="标题" onClick={toggleHeading}>H⌄</button>
-                <button type="button" aria-label="待办事项" onClick={insertTaskItem}>☑</button>
-                <button type="button" aria-label="项目列表" onClick={toggleBulletList}>≡⌄</button>
+                <button type="button" aria-label="待办事项" onClick={insertTaskItem}><SvgIcon name="task" /></button>
+                <button type="button" aria-label="项目列表" onClick={toggleBulletList}><SvgIcon name="list" /></button>
                 <button type="button" aria-label="加粗" onClick={toggleBold}><strong>B</strong></button>
                 <button type="button" aria-label="斜体" onClick={toggleItalic}><em>I</em></button>
-                <button type="button" aria-label="插入标签" onClick={insertTag}>⌫</button>
-                <button type="button" aria-label="插入关联" onClick={insertMention}>@</button>
-                <button type="button" aria-label="插入 2x2 表格" onClick={insertGrid}>▦</button>
-                <button type="button" aria-label="更多">⋮</button>
+                <button type="button" aria-label="插入标签" onClick={insertTag}><SvgIcon name="tag" /></button>
+                <button type="button" aria-label="插入关联" onClick={insertMention}><SvgIcon name="archive" /></button>
+                <button type="button" aria-label="插入 2x2 表格" onClick={insertGrid}><SvgIcon name="stats" /></button>
+                <button type="button" aria-label="插入图片"><SvgIcon name="image" /></button>
+                <button type="button" aria-label="更多"><SvgIcon name="more" /></button>
               </div>
             ) : null}
           </div>
@@ -2001,7 +2106,7 @@ export function WorkspaceViewFinal() {
   return (
     <div className="aw-root">
       <MobileWorkspace language={language} setLanguage={setLanguage} t={t} />
-      <DesktopWorkspace language={language} t={t} />
+      <DesktopWorkspace t={t} />
     </div>
   );
 }

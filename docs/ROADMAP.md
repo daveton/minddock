@@ -55,6 +55,27 @@
 - 主数据损坏时有恢复路径，不静默吞掉用户内容。
 - 可靠性 Gate 通过前，不进入 Phase 2 的重功能建设。
 
+## Phase 1.8：macOS Desktop Shell
+
+目标：把 MindDock 从 Web App 推进到真正可安装、可发布的 macOS 应用。
+
+范围：
+
+- Tauri shell 承载现有 React / TipTap 工作台。
+- 构建输出 `.app` 和 `.dmg`。
+- 保留 Web 的 IndexedDB 路径，Desktop 逐步新增 SQLiteRepository。
+- Repository 接口成为 Web / Desktop 的持久化边界。
+- Markdown Folder 作为桌面端 backup / migration projection。
+- GitHub Actions 基于 tag 构建 release draft。
+- Apple codesign / notarization 作为正式分发前置条件。
+
+完成标准：
+
+- `apps/desktop` 可以本地 `npm run dev` 打开原生窗口。
+- `apps/desktop` 可以在 macOS 上 `npm run build` 输出 bundle。
+- Release workflow 可以生成 draft release。
+- 未接入签名时明确标记为内部测试构建。
+
 ## Phase 2：知识组织
 
 目标：增强组织能力，但不让核心编辑器变重。

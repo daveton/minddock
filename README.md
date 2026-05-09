@@ -13,6 +13,7 @@ MindDock 是一个本地优先的 AI 知识工作台原型，核心方向是「�
 - `apps/web/src/styles.css`：当前生效的产品样式。
 - `apps/web/src/data`：IndexedDB、Repository 和多标签页同步基础。
 - `apps/web/src/editor`、`apps/web/src/ui/EditorView.tsx`：TipTap 编辑器基础，后续用于重新接入真实编辑能力。
+- `apps/desktop`：Tauri 桌面壳，负责 macOS `.app` / `.dmg`、原生能力和发布流程。
 
 ## 核心原则
 
@@ -39,6 +40,21 @@ cd apps/web
 npm run build
 ```
 
+桌面开发：
+
+```bash
+cd apps/desktop
+npm install
+npm run dev
+```
+
+桌面打包：
+
+```bash
+cd apps/desktop
+npm run build
+```
+
 ## 文档
 
 - `docs/CONSTRAINTS.md`：硬性工程约束。
@@ -46,3 +62,4 @@ npm run build
 - `docs/PROJECT_STATUS.md`：当前状态和下一步工作。
 - `docs/ROADMAP.md`：阶段路线图。
 - `docs/ARCHITECTURE.md`：实现边界和架构取舍。
+- `docs/DESKTOP_APP.md`：Tauri、SQLite、Markdown Folder 和 Release 路线。
