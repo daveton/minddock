@@ -1618,7 +1618,13 @@ function DesktopWorkspace({ t }: { t: (key: I18nKey) => string }) {
           </button>
         </div>
         {preferencesOpen ? (
-          <aside className="aw-preferences" aria-label="Preferences">
+          <>
+            <div 
+              className="aw-preferences-overlay" 
+              onClick={() => setPreferencesOpen(false)}
+              aria-hidden="true"
+            />
+            <aside className="aw-preferences" aria-label="Preferences">
             <button
               className="aw-preferences__close"
               onClick={() => setPreferencesOpen(false)}
@@ -1816,6 +1822,7 @@ function DesktopWorkspace({ t }: { t: (key: I18nKey) => string }) {
               ) : null}
             </div>
           </aside>
+          </>
         ) : null}
 
         <nav className="aw-space-list" aria-label={t('workspace')}>
