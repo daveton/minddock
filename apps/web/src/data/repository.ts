@@ -237,8 +237,9 @@ export function sortNotes(notes: NoteSummary[]): NoteSummary[] {
   return notes.sort((a: NoteSummary, b: NoteSummary) => b.updatedAt - a.updatedAt)
 }
 
-export async function createNote() {
+export async function createNote(tagPath?: string | null) {
   const noteId = `note-${crypto.randomUUID().slice(0, 8)}`
+  const normalizedTagPath = normalizeTagPath(tagPath)
   const note: Note = {
     id: noteId,
     ...buildDocumentFields(noteId, normalizeDocument({
@@ -248,6 +249,20 @@ export async function createNote() {
           type: 'heading',
           attrs: { level: 1 },
         },
+        ...(normalizedTagPath
+          ? [
+              {
+                type: 'paragraph',
+                content: [
+                  {
+                    type: 'text',
+                    text: `#${normalizedTagPath}`,
+                    marks: [{ type: 'tag', attrs: { path: normalizedTagPath } }],
+                  },
+                ],
+              },
+            ]
+          : []),
       ],
     }).document, null),
     createdAt: Date.now(),
@@ -259,6 +274,14 @@ export async function createNote() {
   await storageProvider.saveWithSnapshot(note, createSnapshot(note, 'recovery'))
 
   return note
+}
+
+function normalizeTagPath(value: string | null | undefined) {
+  return (value ?? '')
+    .split('/')
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .join('/')
 }
 
 async function repairLoadedNote(note: Note) {

@@ -716,6 +716,12 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
     });
   }, []);
 
+  const focusTitleStart = useCallback((editor: Editor) => {
+    requestAnimationFrame(() => {
+      editor.chain().focus().setTextSelection(1).run();
+    });
+  }, []);
+
   const flushActiveNote = useCallback(async () => {
     const editor = editorRef.current;
     const noteId = activeNoteIdRef.current;
@@ -832,13 +838,14 @@ function DesktopWorkspace({ language, setLanguage, t }: { language: Language; se
         });
       }
 
-      const note = await createNote();
+      const note = await createNote(effectiveActiveTagPath);
       setCurrentNote(note.id);
       activeNoteIdRef.current = note.id;
       setActiveNote(note);
 
       if (editorRef.current) {
         setEditorContent(editorRef.current, note);
+        focusTitleStart(editorRef.current);
       }
 
       setSaveState(
